@@ -14,9 +14,9 @@ dist/
 *.whl
 *.tar.gz
 
-# uv
+# uv — keep `.venv/` ignored but commit `uv.lock` for reproducible
+# CI + Docker builds.
 .venv/
-uv.lock
 
 # --- Node / Next.js -------------------------------------------------------
 node_modules/

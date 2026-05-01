@@ -69,6 +69,10 @@ uv run ruff check .
 
 Tests use `opentelemetry.sdk.trace.export.InMemorySpanExporter` — no network I/O.
 
+## Releasing
+
+See [`../../docs/RELEASING.md`](../../docs/RELEASING.md). Pushing a `krakenops-v*` tag triggers `.github/workflows/release-krakenops.yml` which builds the wheel + sdist and publishes via OIDC trusted publishing — no API tokens stored. TestPyPI on every tag, real PyPI on stable tags.
+
 ## Design
 
 See [`../../CLAUDE.md`](../../CLAUDE.md) §2.2 (overview) and §5.1 (data flow), [ADR 0001](../../docs/adr/0001-tentacle-span-schema.md) (span schema), and [ADR 0004](../../docs/adr/0004-pypi-distribution-name.md) (why the dist name and module name differ).

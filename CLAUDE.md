@@ -125,7 +125,7 @@ Each `apps/*` and `packages/*` carries **its own README and its own dependency m
 - API routes: lowercase, plural, prefixed with `/v1/`, e.g. `/v1/traces`, `/v1/agents`, `/v1/tickets`, `/v1/costs`.
 
 **Versioning:**
-- `tentacle` follows **SemVer** on PyPI. Wire-format-affecting changes require a major bump.
+- The SDK follows **SemVer** on PyPI under the distribution name `krakenops` (the Python module is `tentacle` — see [ADR 0004](docs/adr/0004-pypi-distribution-name.md)). Wire-format-affecting changes require a major bump. Releases are cut by pushing a `krakenops-v*` tag — see [docs/RELEASING.md](docs/RELEASING.md).
 - Backend exposes `/v1/...` only. Breaking changes bump to `/v2/...` (and we maintain `/v1/` until the dashboard catches up).
 - Dashboard is unversioned; it always ships with the backend revision in the same repo.
 
@@ -273,6 +273,8 @@ Delete the directory to reset.
 ---
 
 ## 8. Testing Strategy
+
+**CI** runs on every PR + push to `main` via [`.github/workflows/ci.yml`](.github/workflows/ci.yml): SDK pytest+ruff, backend pytest+ruff, dashboard typecheck+biome+build. Three independent jobs in parallel.
 
 - **Unit tests** live next to the code: `apps/backend/tests/`, `packages/tentacle/tests/`, `apps/dashboard/src/**/__tests__/`.
 - **Contract tests** live at the repo root: `tests/contract/`. They contain canonical OTel payload fixtures + JSON schemas. Both backend and SDK test suites consume them — this is what catches wire-format drift before it ships.

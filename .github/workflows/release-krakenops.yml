@@ -1,0 +1,91 @@
+name: Release krakenops to PyPI
+
+# Triggered by pushing a tag that matches `krakenops-v*` (e.g. krakenops-v1.0.0,
+# krakenops-v1.0.0rc1). The build job runs in all cases; pre-release tags
+# (containing rc/a/b) only land on TestPyPI; stable tags also publish to
+# real PyPI.
+#
+# Trusted publishing (OIDC) is used — no API tokens stored. The PyPI side
+# requires a one-time setup (see docs/RELEASING.md).
+
+on:
+  push:
+    tags:
+      - "krakenops-v*"
+
+jobs:
+  build:
+    name: Build sdist + wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "0.5.x"
+          enable-cache: true
+          cache-dependency-glob: "packages/tentacle/uv.lock"
+
+      - name: Verify the version in pyproject.toml matches the tag
+        working-directory: packages/tentacle
+        run: |
+          set -euo pipefail
+          ref="${GITHUB_REF#refs/tags/krakenops-v}"
+          file_version="$(uv run python -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')"
+          echo "tag version : $ref"
+          echo "file version: $file_version"
+          if [ "$ref" != "$file_version" ]; then
+            echo "::error::tag version ($ref) and pyproject.toml version ($file_version) disagree"
+            exit 1
+          fi
+
+      - name: Build
+        working-directory: packages/tentacle
+        run: uv build
+
+      - name: Upload built dists
+        uses: actions/upload-artifact@v4
+        with:
+          name: krakenops-dist
+          path: packages/tentacle/dist/
+
+  testpypi:
+    name: Publish to TestPyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/krakenops
+    permissions:
+      id-token: write # required for OIDC trusted publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: krakenops-dist
+          path: dist/
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  pypi:
+    name: Publish to PyPI
+    needs: testpypi
+    # Skip stable PyPI for tags that look like pre-releases (rc/a/b/.dev/.post).
+    if: ${{ !contains(github.ref, 'rc') && !contains(github.ref, 'a') && !contains(github.ref, 'b') && !contains(github.ref, '.dev') && !contains(github.ref, '.post') }}
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/krakenops
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: krakenops-dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
