@@ -1,0 +1,12 @@
+node_modules/
+.next/
+.turbo/
+out/
+*.tsbuildinfo
+
+.DS_Store
+.idea/
+.vscode/
+
+.git/
+.github/

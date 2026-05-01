@@ -1,0 +1,22 @@
+# Build output
+.venv/
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+build/
+dist/
+*.egg-info/
+
+# Tests aren't needed in the runtime image.
+tests/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Repo metadata that's not relevant to a container build.
+.git/
+.github/

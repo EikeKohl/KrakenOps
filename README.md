@@ -4,7 +4,26 @@
 
 A lightweight, local-first observability and orchestration layer for AI developers running agents on a single machine — typically a headless Mac mini or a beefy workstation.
 
-Bring your own Python code. `pip install tentacle`, sprinkle in two decorators, and KrakenOps catches the spans, token usage, costs, and human-review pauses automatically. Everything runs on your machine — no hosted services, no rewrites into LangChain or CrewAI.
+Bring your own Python code. `pip install krakenops`, sprinkle in two decorators (`import tentacle`), and KrakenOps catches the spans, token usage, costs, and human-review pauses automatically. Everything runs on your machine — no hosted services, no rewrites into LangChain or CrewAI.
+
+## Quickstart
+
+The fastest way to see it run:
+
+```sh
+docker compose up
+# → Dashboard:  http://localhost:3000
+# → Backend:    http://localhost:8787   (REST + /v1/ws)
+
+# In another terminal, fire some traces against it:
+( cd packages/tentacle && uv run python ../../examples/hello_agent.py \
+    --count 5 --endpoint http://127.0.0.1:8787/v1/traces )
+```
+
+State persists in a Docker volume; `docker compose down --volumes` resets.
+
+For native development (faster iteration, accurate hardware metrics) see
+[`CLAUDE.md`](CLAUDE.md) §7 or the per-component READMEs.
 
 ## What it does
 

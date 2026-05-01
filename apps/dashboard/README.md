@@ -15,7 +15,9 @@ pnpm install
 pnpm dev          # → http://localhost:3000
 ```
 
-The dashboard reads `NEXT_PUBLIC_KRAKENOPS_API` (default `http://localhost:8787`) for both REST and WebSocket targets.
+The dashboard reads `NEXT_PUBLIC_KRAKENOPS_API` (default `http://localhost:8787`) for both REST and WebSocket targets. Note: this is a `NEXT_PUBLIC_*` var, so it's **inlined at build time**, not read at runtime — for the Docker build, pass it via `--build-arg` (see `compose.yml`).
+
+For a containerized run, use `docker compose up` from the repo root. The `Dockerfile` here is multi-stage and produces a minimal runtime via Next.js's `output: "standalone"`.
 
 For a fully populated dashboard, run the backend + an example agent so traces stream in:
 
