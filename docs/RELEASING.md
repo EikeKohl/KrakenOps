@@ -101,7 +101,26 @@ python -c "import tentacle; print(tentacle.__version__)"
 - **`tag version (X) and pyproject.toml version (Y) disagree`** — the build job's pre-flight caught a mismatch. Fix the version in `pyproject.toml` + `_version.py`, push, and re-tag.
 - **"first publish only"** — PyPI's pending-publisher mechanism converts to a regular trusted publisher after the first successful release. After that, only the workflow filename + env name + repo identity need to match; the project already exists.
 
+## Docker images (GHCR)
+
+Pushing a `krakenops-v*` tag *also* triggers `.github/workflows/release-docker.yml`, which builds the backend and dashboard images and pushes multi-arch (linux/amd64 + linux/arm64) to GHCR:
+
+- `ghcr.io/eikekohl/krakenops-backend:0.0.1` and `:latest`
+- `ghcr.io/eikekohl/krakenops-dashboard:0.0.1` and `:latest`
+
+(GitHub lowercases the owner namespace automatically.)
+
+**First-time setup:** new GHCR packages default to **private**. After the first successful run, flip each package to public so users can `docker pull` without authenticating. Each package has a dedicated settings page:
+
+```
+https://github.com/users/EikeKohl/packages/container/krakenops-backend/settings
+https://github.com/users/EikeKohl/packages/container/krakenops-dashboard/settings
+```
+
+Scroll to the **Danger Zone** and click **Change visibility** → **Public**. Once flipped, future pushes to the same package stay public.
+
+The workflow also accepts `workflow_dispatch` for manual rebuilds without pushing a new tag (useful if a Dockerfile-only fix is needed mid-version).
+
 ## Future work
 
-- **Docker images to GHCR.** Once we want to ship pre-built container images, add `.github/workflows/release-docker.yml` that builds + pushes `krakenops-backend` and `krakenops-dashboard` to `ghcr.io/eikekohl/...` on the same tag triggers.
 - **Backend / dashboard versioning in PyPI-style.** The backend isn't published anywhere today; if/when we want a `krakenops-backend` PyPI distribution, this workflow's structure replicates cleanly.
