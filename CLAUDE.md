@@ -339,6 +339,6 @@ KrakenOps is shipped in numbered PRs against `main`. The current state:
 | #6 | Dashboard v0.1: layout shell, Hardware panel, Processes panel against live WS + REST. | Pending PR #5 |
 | #7 | Backend v0.3: GitHub Projects poller + agent subprocess orchestration + `kanban` WS topic. | Pending PR #6 |
 | #8 | Dashboard v0.2: Kanban panel, command endpoints (`start`, `stop`, `resume`). | Pending PR #7 |
-| #9 | Anthropic SDK auto-instrumentation, cost rollups (`/v1/costs`), polish, first PyPI release of `tentacle`. | Pending PR #8 |
+| #9 | v1.0 polish: dashboard cost rollup strip (`/v1/costs`), SDK 1.0.0, first PyPI release as **`krakenops`** (the `tentacle` PyPI name was already taken — see [ADR 0004](docs/adr/0004-pypi-distribution-name.md); Python module remains `tentacle`, Pillow-style). | **In review** |
 
 Anything beyond PR #9 is post-1.0.
