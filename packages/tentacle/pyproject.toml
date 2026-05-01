@@ -1,14 +1,14 @@
 [project]
-name = "tentacle"
-version = "0.1.0"
-description = "Agent-agnostic OpenTelemetry decorators for KrakenOps. Bring your own code."
+name = "krakenops"
+version = "1.0.0"
+description = "KrakenOps SDK — agent-agnostic OpenTelemetry decorators. Distributed as `krakenops` on PyPI; imported as `tentacle` in Python (Pillow-style; see ADR 0004)."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "KrakenOps contributors" }]
 keywords = ["opentelemetry", "observability", "ai", "agents", "krakenops"]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -25,7 +25,7 @@ dependencies = [
 [project.optional-dependencies]
 openai = ["opentelemetry-instrumentation-openai-v2>=2.0b0"]
 anthropic = ["opentelemetry-instrumentation-anthropic>=0.1.0"]
-all = ["tentacle[openai,anthropic]"]
+all = ["krakenops[openai,anthropic]"]
 
 [project.urls]
 Homepage = "https://github.com/eikekohlmeyer/KrakenOps"

@@ -2,6 +2,11 @@
 
 Agent-agnostic OpenTelemetry decorators for [KrakenOps](https://github.com/eikekohlmeyer/KrakenOps).
 
+> **Heads-up:** the PyPI distribution name is **`krakenops`**, but the Python
+> module is **`tentacle`** (Pillow-style — see [ADR 0004](../../docs/adr/0004-pypi-distribution-name.md)
+> for why). Install with `pip install krakenops`, import with `import tentacle`.
+> The unrelated `tentacle` package on PyPI is **not** us.
+
 ```python
 import tentacle
 
@@ -23,16 +28,18 @@ def summarize(notes: list[str]) -> str:
 
 ## Status
 
-**v0.1.0** — first real release. Real OTLP/HTTP export, sync and async decorators, `NeedsHumanReview` signal, optional OpenAI/Anthropic auto-instrumentation. Span schema is locked by [ADR 0001](../../docs/adr/0001-tentacle-span-schema.md).
+**v1.0.0** — first PyPI release. Real OTLP/HTTP export, sync and async decorators, `NeedsHumanReview` signal, optional OpenAI/Anthropic auto-instrumentation. Span schema is locked by [ADR 0001](../../docs/adr/0001-tentacle-span-schema.md).
 
 ## Install
 
 ```sh
-pip install tentacle                  # core only — no auto-instrumentation
-pip install 'tentacle[openai]'        # + OpenAI v2 auto-instrumentation
-pip install 'tentacle[anthropic]'     # + Anthropic auto-instrumentation
-pip install 'tentacle[all]'           # everything
+pip install krakenops                  # core only — no auto-instrumentation
+pip install 'krakenops[openai]'        # + OpenAI v2 auto-instrumentation
+pip install 'krakenops[anthropic]'     # + Anthropic auto-instrumentation
+pip install 'krakenops[all]'           # everything
 ```
+
+Then `import tentacle` (not `import krakenops`).
 
 ## Usage
 
@@ -64,4 +71,4 @@ Tests use `opentelemetry.sdk.trace.export.InMemorySpanExporter` — no network I
 
 ## Design
 
-See [`../../CLAUDE.md`](../../CLAUDE.md) §2.2 (overview) and §5.1 (data flow), and [ADR 0001](../../docs/adr/0001-tentacle-span-schema.md) (span schema).
+See [`../../CLAUDE.md`](../../CLAUDE.md) §2.2 (overview) and §5.1 (data flow), [ADR 0001](../../docs/adr/0001-tentacle-span-schema.md) (span schema), and [ADR 0004](../../docs/adr/0004-pypi-distribution-name.md) (why the dist name and module name differ).
