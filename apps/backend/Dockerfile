@@ -6,7 +6,7 @@
 # pyproject.toml + uv.lock changes only.
 # Stage 2 (runtime) — slim image carrying just python + the venv + the app.
 
-FROM python:3.12-slim AS deps
+FROM python:3.14-slim AS deps
 
 # uv is shipped as a single static binary; pull from the official ghcr image.
 COPY --from=ghcr.io/astral-sh/uv:0.5 /uv /uvx /usr/local/bin/
@@ -23,7 +23,7 @@ COPY uv.lock* ./
 RUN uv sync --no-install-project --no-dev
 
 
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 # Same uv binary in case anyone needs to introspect or run a one-off script
 # inside a running container.
