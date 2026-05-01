@@ -1,0 +1,107 @@
+# Dependabot configuration. Weekly schedule across the four ecosystems
+# we ship: pip (backend + SDK), npm (dashboard), github-actions, and
+# the docker base images. Grouped where it makes sense to keep PR noise
+# manageable on a small repo.
+
+version: 2
+
+updates:
+  # --- Python: backend ---------------------------------------------------
+  - package-ecosystem: pip
+    directory: /apps/backend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - backend
+    commit-message:
+      prefix: "backend:"
+    groups:
+      backend-dev:
+        dependency-type: development
+        patterns:
+          - "*"
+
+  # --- Python: SDK -------------------------------------------------------
+  - package-ecosystem: pip
+    directory: /packages/tentacle
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - sdk
+    commit-message:
+      prefix: "sdk:"
+    groups:
+      sdk-dev:
+        dependency-type: development
+        patterns:
+          - "*"
+
+  # --- TypeScript: dashboard --------------------------------------------
+  # Dependabot's `npm` ecosystem supports pnpm-lock.yaml as of 2024.
+  - package-ecosystem: npm
+    directory: /apps/dashboard
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - dashboard
+    commit-message:
+      prefix: "dashboard:"
+    groups:
+      dashboard-dev:
+        dependency-type: development
+        patterns:
+          - "*"
+      next-runtime:
+        patterns:
+          - "next"
+          - "react"
+          - "react-dom"
+
+  # --- GitHub Actions ---------------------------------------------------
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - infra
+    commit-message:
+      prefix: "infra:"
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # --- Docker base images -----------------------------------------------
+  - package-ecosystem: docker
+    directory: /apps/backend
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - dependencies
+      - backend
+    commit-message:
+      prefix: "backend:"
+
+  - package-ecosystem: docker
+    directory: /apps/dashboard
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - dependencies
+      - dashboard
+    commit-message:
+      prefix: "dashboard:"
