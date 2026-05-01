@@ -28,7 +28,7 @@ def summarize(notes: list[str]) -> str:
 
 ## Status
 
-**v1.0.0** — first PyPI release. Real OTLP/HTTP export, sync and async decorators, `NeedsHumanReview` signal, optional OpenAI/Anthropic auto-instrumentation. Span schema is locked by [ADR 0001](../../docs/adr/0001-tentacle-span-schema.md).
+**v0.0.1** — first public release. Real OTLP/HTTP export, sync and async decorators, `NeedsHumanReview` signal, optional OpenAI/Anthropic auto-instrumentation. Wire format described in [ADR 0001](../../docs/adr/0001-tentacle-span-schema.md); APIs and on-the-wire shapes may still shift before 1.0.0.
 
 ## Install
 

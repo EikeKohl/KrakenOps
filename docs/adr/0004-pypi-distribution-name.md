@@ -71,7 +71,7 @@ The change is concentrated in two places:
 
 ## Ripple plan
 
-- [x] **SDK** — pyproject `name` only; bump to 1.0.0.
+- [x] **SDK** — pyproject `name` only. (The original v1.0.0 framing was rolled back to 0.0.1 before first publish to better signal pre-stable status; see CHANGELOG.)
 - [x] **Skill** — `/release-tentacle` renamed to `/release-krakenops`.
 - [x] **README** — `pip install krakenops` everywhere; one disambiguation
       paragraph in the SDK README.
