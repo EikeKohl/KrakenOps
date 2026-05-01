@@ -1,9 +1,9 @@
 name: Release krakenops to PyPI
 
 # Triggered by pushing a tag that matches `krakenops-v*` (e.g. krakenops-v1.0.0,
-# krakenops-v1.0.0rc1). The build job runs in all cases; pre-release tags
-# (containing rc/a/b) only land on TestPyPI; stable tags also publish to
-# real PyPI.
+# krakenops-v1.0.0rc1). The build job extracts the bare version from the tag
+# and classifies it as stable or pre-release. Pre-release tags only land on
+# TestPyPI; stable tags also publish to real PyPI.
 #
 # Trusted publishing (OIDC) is used — no API tokens stored. The PyPI side
 # requires a one-time setup (see docs/RELEASING.md).
@@ -17,6 +17,9 @@ jobs:
   build:
     name: Build sdist + wheel
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.classify.outputs.version }}
+      is_stable: ${{ steps.classify.outputs.is_stable }}
     steps:
       - uses: actions/checkout@v4
 
@@ -27,18 +30,29 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "packages/tentacle/uv.lock"
 
-      - name: Verify the version in pyproject.toml matches the tag
+      - name: Classify the tag (version + stable/pre-release)
+        id: classify
         working-directory: packages/tentacle
         run: |
           set -euo pipefail
-          ref="${GITHUB_REF#refs/tags/krakenops-v}"
+          version="${GITHUB_REF#refs/tags/krakenops-v}"
           file_version="$(uv run python -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')"
-          echo "tag version : $ref"
+          echo "tag version : $version"
           echo "file version: $file_version"
-          if [ "$ref" != "$file_version" ]; then
-            echo "::error::tag version ($ref) and pyproject.toml version ($file_version) disagree"
+          if [ "$version" != "$file_version" ]; then
+            echo "::error::tag version ($version) and pyproject.toml version ($file_version) disagree"
             exit 1
           fi
+          # Stable iff the version is purely "N.N.N" — anything else (rcN, aN,
+          # bN, .devN, .postN) is a pre-release in PEP 440 terms.
+          if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            is_stable=true
+          else
+            is_stable=false
+          fi
+          echo "is_stable: $is_stable"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "is_stable=$is_stable" >> "$GITHUB_OUTPUT"
 
       - name: Build
         working-directory: packages/tentacle
@@ -72,9 +86,8 @@ jobs:
 
   pypi:
     name: Publish to PyPI
-    needs: testpypi
-    # Skip stable PyPI for tags that look like pre-releases (rc/a/b/.dev/.post).
-    if: ${{ !contains(github.ref, 'rc') && !contains(github.ref, 'a') && !contains(github.ref, 'b') && !contains(github.ref, '.dev') && !contains(github.ref, '.post') }}
+    needs: [build, testpypi]
+    if: ${{ needs.build.outputs.is_stable == 'true' }}
     runs-on: ubuntu-latest
     environment:
       name: pypi
