@@ -1,0 +1,58 @@
+# KrakenOps local stack — `docker compose up` to boot backend + dashboard.
+#
+#   Backend:   http://localhost:8787   (REST + /v1/ws)
+#   Dashboard: http://localhost:3000
+#
+# State is persisted to a named volume `krakenops-data` (mounted at /data
+# inside the backend container). Delete the volume to reset:
+#
+#   docker compose down --volumes
+#
+# Heads-up about hardware metrics: psutil inside a container reports the
+# *container's* view, which on Linux often shows host CPU/RAM and on Docker
+# Desktop (Mac/Windows) shows the VM. If you want true host-level metrics,
+# run the backend natively (uv run uvicorn ...) instead.
+
+services:
+  backend:
+    build:
+      context: ./apps/backend
+    image: krakenops-backend:local
+    ports:
+      - "8787:8787"
+    volumes:
+      - krakenops-data:/data
+    environment:
+      KRAKENOPS_HOME: /data
+      KRAKENOPS_PORT: "8787"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8787/v1/health',timeout=2).status==200 else 1)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ./apps/dashboard
+      args:
+        # Browser-side fetch target. Default "localhost" assumes the user
+        # opens http://localhost:3000 from the same host that runs Compose.
+        NEXT_PUBLIC_KRAKENOPS_API: http://localhost:8787
+    image: krakenops-dashboard:local
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  krakenops-data:

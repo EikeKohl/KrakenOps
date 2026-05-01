@@ -245,13 +245,26 @@ All five steps land in **one PR**, each as its own commit prefixed per §4.
 
 **Prereqs:** Python 3.10+, Node 20+, `uv`, `pnpm`. macOS (the primary target) or Linux. Windows is not supported.
 
-**One-shot:**
+### Option A — `docker compose up` (zero-install demo)
+
+```sh
+docker compose up
+# → Dashboard  http://localhost:3000
+# → Backend    http://localhost:8787  (REST + /v1/ws)
+```
+
+Backend image is built from `apps/backend/Dockerfile` (uv-based, multi-stage). Dashboard uses Next.js's `output: "standalone"` for a slim runtime. State persists in a named volume `krakenops_krakenops-data`; reset with `docker compose down --volumes`.
+
+**Hardware metrics caveat:** `psutil` inside a container reports the container's view, not the host's — useful for proving the wiring works, but not the real intent of the Hardware panel. Use **Option B** for accurate host-level CPU/RAM/Disk.
+
+### Option B — native (faster iteration, accurate hardware)
+
 ```sh
 scripts/dev-up.sh
 ```
 Boots backend on `:8787`, dashboard on `:3000`, and tails the example agent. Use the `/dev-up` skill if you'd rather Claude Code drive it.
 
-**Manual (one terminal each):**
+Or one terminal each:
 ```sh
 # Terminal 1 — backend
 cd apps/backend && uv run uvicorn app.main:app --reload --port 8787
@@ -263,12 +276,12 @@ cd apps/dashboard && pnpm dev
 cd packages/tentacle && uv run python ../../examples/hello_agent.py
 ```
 
-**State location:** `~/.krakenops/`
+**State location (native mode):** `~/.krakenops/`
 - `krakenops.db` — SQLite (WAL), all persistent state.
 - `pricing.yaml` — optional override of the bundled model price list.
 - `config.toml` — optional GH PAT, project ID, agent mappings.
 
-Delete the directory to reset.
+Delete the directory to reset. Compose mode keeps the same files in a Docker volume mounted at `/data`.
 
 ---
 

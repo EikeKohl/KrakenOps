@@ -15,6 +15,8 @@ uv run uvicorn app.main:app --reload --port 8787
 
 On first start, the backend creates `~/.krakenops/krakenops.db`, applies migrations, seeds `model_pricing` from `pricing/default.yaml`, starts the `psutil` sampler, and (if configured) starts the GitHub poller.
 
+For a containerized run alongside the dashboard, use `docker compose up` from the repo root — see [`../../CLAUDE.md`](../../CLAUDE.md) §7. The `Dockerfile` here is multi-stage (uv → slim runtime); state persists in a Docker volume mounted at `/data` (`KRAKENOPS_HOME=/data`).
+
 ## Endpoints
 
 ### REST
