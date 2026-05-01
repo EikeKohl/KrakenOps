@@ -1,0 +1,46 @@
+{
+  "_comment": "Minimal canonical payload — one agent span with one tool child. No LLM token data. See docs/adr/0001-tentacle-span-schema.md.",
+  "resource": {
+    "attributes": {
+      "service.name": "tentacle-agent",
+      "telemetry.sdk.name": "tentacle",
+      "telemetry.sdk.version": "0.1.0"
+    }
+  },
+  "spans": [
+    {
+      "trace_id": "0123456789abcdef0123456789abcdef",
+      "span_id": "0123456789abcdef",
+      "parent_span_id": null,
+      "name": "research",
+      "kind": "INTERNAL",
+      "start_time_unix_nano": 1735689600000000000,
+      "end_time_unix_nano": 1735689600500000000,
+      "status": { "code": "UNSET" },
+      "attributes": {
+        "tentacle.kind": "agent",
+        "tentacle.sdk.version": "0.1.0",
+        "code.function": "research",
+        "code.namespace": "examples.hello_agent"
+      },
+      "events": []
+    },
+    {
+      "trace_id": "0123456789abcdef0123456789abcdef",
+      "span_id": "fedcba9876543210",
+      "parent_span_id": "0123456789abcdef",
+      "name": "gather_notes",
+      "kind": "INTERNAL",
+      "start_time_unix_nano": 1735689600100000000,
+      "end_time_unix_nano": 1735689600200000000,
+      "status": { "code": "UNSET" },
+      "attributes": {
+        "tentacle.kind": "tool",
+        "tentacle.sdk.version": "0.1.0",
+        "code.function": "gather_notes",
+        "code.namespace": "examples.hello_agent"
+      },
+      "events": []
+    }
+  ]
+}

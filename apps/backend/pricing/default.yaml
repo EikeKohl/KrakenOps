@@ -1,0 +1,40 @@
+# Default model pricing for KrakenOps cost computation.
+#
+# Schema: each entry is { model, input_per_1k_usd, output_per_1k_usd, source }.
+# Override locally by creating ~/.krakenops/pricing.yaml with the same shape;
+# user entries replace the matching `model` key from this default file.
+#
+# Prices are illustrative starter values. Verify against the official pricing
+# pages and override locally if they drift:
+#   https://openai.com/api/pricing
+#   https://www.anthropic.com/pricing#api
+#
+# `source` = audit trail; bump when you re-verify.
+
+source_label: default-2026-05
+
+models:
+  # OpenAI ----------------------------------------------------------------
+  - model: gpt-4o-2024-08-06
+    input_per_1k_usd: 0.0025
+    output_per_1k_usd: 0.0100
+  - model: gpt-4o-mini
+    input_per_1k_usd: 0.00015
+    output_per_1k_usd: 0.00060
+  - model: gpt-4-turbo
+    input_per_1k_usd: 0.0100
+    output_per_1k_usd: 0.0300
+  - model: gpt-3.5-turbo-0125
+    input_per_1k_usd: 0.0005
+    output_per_1k_usd: 0.0015
+
+  # Anthropic -------------------------------------------------------------
+  - model: claude-opus-4-7
+    input_per_1k_usd: 0.0150
+    output_per_1k_usd: 0.0750
+  - model: claude-sonnet-4-6
+    input_per_1k_usd: 0.0030
+    output_per_1k_usd: 0.0150
+  - model: claude-haiku-4-5-20251001
+    input_per_1k_usd: 0.0008
+    output_per_1k_usd: 0.0040

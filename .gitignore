@@ -1,0 +1,50 @@
+# --- Python ---------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.tox/
+.coverage
+htmlcov/
+build/
+dist/
+*.whl
+*.tar.gz
+
+# uv
+.venv/
+uv.lock
+
+# --- Node / Next.js -------------------------------------------------------
+node_modules/
+.next/
+.turbo/
+out/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# --- Editor / OS ----------------------------------------------------------
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# --- KrakenOps runtime state (lives outside the repo by default; safety net) ---
+.krakenops/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# --- Misc -----------------------------------------------------------------
+.env
+.env.local
+.env.*.local
+/tmp/
+.claude
+

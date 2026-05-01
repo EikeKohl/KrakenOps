@@ -1,0 +1,56 @@
+{
+  "_comment": "Span tree where the inner require_human function raises NeedsHumanReview. Note: status.code is OK (not ERROR) — pause-for-human is a controlled signal. The presence of tentacle.needs_human_review=true on any span in a trace is what flips the GitHub ticket to 'Needs Human Review'. See ADR 0001.",
+  "resource": {
+    "attributes": {
+      "service.name": "tentacle-agent",
+      "telemetry.sdk.name": "tentacle",
+      "telemetry.sdk.version": "0.1.0"
+    }
+  },
+  "spans": [
+    {
+      "trace_id": "1111111111111111aaaaaaaaaaaaaaaa",
+      "span_id": "1111111111111111",
+      "parent_span_id": null,
+      "name": "research",
+      "kind": "INTERNAL",
+      "start_time_unix_nano": 1735689800000000000,
+      "end_time_unix_nano": 1735689800500000000,
+      "status": { "code": "UNSET" },
+      "attributes": {
+        "tentacle.kind": "agent",
+        "tentacle.sdk.version": "0.1.0",
+        "code.function": "research",
+        "code.namespace": "examples.hello_agent"
+      },
+      "events": []
+    },
+    {
+      "trace_id": "1111111111111111aaaaaaaaaaaaaaaa",
+      "span_id": "2222222222222222",
+      "parent_span_id": "1111111111111111",
+      "name": "confirm_source",
+      "kind": "INTERNAL",
+      "start_time_unix_nano": 1735689800100000000,
+      "end_time_unix_nano": 1735689800200000000,
+      "status": { "code": "OK" },
+      "attributes": {
+        "tentacle.kind": "human_review",
+        "tentacle.sdk.version": "0.1.0",
+        "tentacle.needs_human_review": true,
+        "code.function": "confirm_source",
+        "code.namespace": "examples.hello_agent"
+      },
+      "events": [
+        {
+          "name": "tentacle.needs_human_review",
+          "time_unix_nano": 1735689800150000000,
+          "attributes": {
+            "tentacle.review.prompt": "Sources disagree — which one should I trust?",
+            "tentacle.review.payload": "{\"options\": [\"note about ai #0\", \"note about ai #1\"]}"
+          }
+        }
+      ]
+    }
+  ]
+}

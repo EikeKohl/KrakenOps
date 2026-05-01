@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://krakenops.dev/schemas/tentacle_span.schema.json",
+  "title": "TentacleSpan",
+  "description": "A single OTel span as emitted by the tentacle SDK and consumed by the KrakenOps backend. Mirrors ADR 0001.",
+  "type": "object",
+  "required": [
+    "trace_id",
+    "span_id",
+    "name",
+    "kind",
+    "start_time_unix_nano",
+    "end_time_unix_nano",
+    "status",
+    "attributes"
+  ],
+  "properties": {
+    "trace_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+    "span_id": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+    "parent_span_id": {
+      "anyOf": [
+        { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+        { "type": "null" }
+      ]
+    },
+    "name": { "type": "string", "minLength": 1 },
+    "kind": { "type": "string", "enum": ["INTERNAL", "CLIENT", "SERVER", "PRODUCER", "CONSUMER"] },
+    "start_time_unix_nano": { "type": "integer", "minimum": 0 },
+    "end_time_unix_nano": { "type": "integer", "minimum": 0 },
+    "status": {
+      "type": "object",
+      "required": ["code"],
+      "properties": {
+        "code": { "type": "string", "enum": ["UNSET", "OK", "ERROR"] },
+        "message": { "type": "string" }
+      }
+    },
+    "attributes": {
+      "type": "object",
+      "required": ["tentacle.kind", "tentacle.sdk.version"],
+      "properties": {
+        "tentacle.kind": { "type": "string", "enum": ["agent", "tool", "human_review"] },
+        "tentacle.sdk.version": { "type": "string" },
+        "tentacle.needs_human_review": { "type": "boolean" },
+        "code.function": { "type": "string" },
+        "code.namespace": { "type": "string" },
+        "gen_ai.system": { "type": "string" },
+        "gen_ai.request.model": { "type": "string" },
+        "gen_ai.usage.input_tokens": { "type": "integer", "minimum": 0 },
+        "gen_ai.usage.output_tokens": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "time_unix_nano", "attributes"],
+        "properties": {
+          "name": { "type": "string" },
+          "time_unix_nano": { "type": "integer", "minimum": 0 },
+          "attributes": { "type": "object" }
+        }
+      }
+    }
+  }
+}

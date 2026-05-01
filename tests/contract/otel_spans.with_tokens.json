@@ -1,0 +1,48 @@
+{
+  "_comment": "Same shape as minimal, plus an LLM tool child span carrying OTel GenAI token attributes. The backend joins gen_ai.request.model against model_pricing to derive cost_usd; the SDK never reports cost.",
+  "resource": {
+    "attributes": {
+      "service.name": "tentacle-agent",
+      "telemetry.sdk.name": "tentacle",
+      "telemetry.sdk.version": "0.1.0"
+    }
+  },
+  "spans": [
+    {
+      "trace_id": "fedcba9876543210fedcba9876543210",
+      "span_id": "aaaaaaaaaaaaaaaa",
+      "parent_span_id": null,
+      "name": "research",
+      "kind": "INTERNAL",
+      "start_time_unix_nano": 1735689700000000000,
+      "end_time_unix_nano": 1735689701500000000,
+      "status": { "code": "UNSET" },
+      "attributes": {
+        "tentacle.kind": "agent",
+        "tentacle.sdk.version": "0.1.0",
+        "code.function": "research",
+        "code.namespace": "examples.hello_agent"
+      },
+      "events": []
+    },
+    {
+      "trace_id": "fedcba9876543210fedcba9876543210",
+      "span_id": "bbbbbbbbbbbbbbbb",
+      "parent_span_id": "aaaaaaaaaaaaaaaa",
+      "name": "openai.chat.completions",
+      "kind": "INTERNAL",
+      "start_time_unix_nano": 1735689700200000000,
+      "end_time_unix_nano": 1735689701000000000,
+      "status": { "code": "UNSET" },
+      "attributes": {
+        "tentacle.kind": "tool",
+        "tentacle.sdk.version": "0.1.0",
+        "gen_ai.system": "openai",
+        "gen_ai.request.model": "gpt-4o-2024-08-06",
+        "gen_ai.usage.input_tokens": 412,
+        "gen_ai.usage.output_tokens": 187
+      },
+      "events": []
+    }
+  ]
+}
