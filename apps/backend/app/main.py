@@ -14,6 +14,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
 from app.config_file import load as load_file_config
@@ -70,6 +71,18 @@ app = FastAPI(
     version=__version__,
     description="Local-first ingest + orchestration for KrakenOps.",
     lifespan=lifespan,
+)
+
+# Local-first: dashboard runs on the same host but a different port (3000 by
+# default, 3001 if 3000 is taken). Allow it to call the REST API from the
+# browser. Override via KRAKENOPS_CORS_ORIGINS (comma-separated) when needed.
+_default_origins = "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001"
+_cors_origins = [o.strip() for o in os.environ.get("KRAKENOPS_CORS_ORIGINS", _default_origins).split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 app.include_router(health.router)
