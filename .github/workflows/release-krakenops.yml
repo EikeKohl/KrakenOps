@@ -21,10 +21,10 @@ jobs:
       version: ${{ steps.classify.outputs.version }}
       is_stable: ${{ steps.classify.outputs.is_stable }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
         with:
           version: "0.5.x"
           enable-cache: true
@@ -59,7 +59,7 @@ jobs:
         run: uv build
 
       - name: Upload built dists
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: krakenops-dist
           path: packages/tentacle/dist/
@@ -74,7 +74,7 @@ jobs:
     permissions:
       id-token: write # required for OIDC trusted publishing
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: krakenops-dist
           path: dist/
@@ -95,7 +95,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: krakenops-dist
           path: dist/
