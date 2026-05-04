@@ -6,15 +6,23 @@
 # Stage 2 (builder) — produce the Next.js standalone output.
 # Stage 3 (runtime) — minimal node image carrying only the standalone bundle.
 
+# Pin pnpm to the version package.json declares under "packageManager".
+# Bumping node base images can drop bundled corepack (node 25 did), so we
+# install pnpm directly via npm rather than relying on `corepack enable`.
+ARG PNPM_VERSION=9.12.0
+
+
 FROM node:25-alpine AS deps
 
+ARG PNPM_VERSION
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
-RUN corepack enable && pnpm install --frozen-lockfile
+RUN npm install -g pnpm@${PNPM_VERSION} && pnpm install --frozen-lockfile
 
 
 FROM node:25-alpine AS builder
 
+ARG PNPM_VERSION
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -25,7 +33,7 @@ COPY . .
 ARG NEXT_PUBLIC_KRAKENOPS_API=http://localhost:8787
 ENV NEXT_PUBLIC_KRAKENOPS_API=${NEXT_PUBLIC_KRAKENOPS_API}
 
-RUN corepack enable && pnpm build
+RUN npm install -g pnpm@${PNPM_VERSION} && pnpm build
 
 
 FROM node:25-alpine AS runtime
