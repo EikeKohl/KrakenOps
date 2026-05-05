@@ -40,10 +40,28 @@ DEFAULT_PROCESS_DENYLIST: tuple[str, ...] = (
 
 
 @dataclass
-class GitHubConfig:
-    pat: str
-    project_id: str
+class GitHubProjectConfig:
+    """One GitHub Projects v2 board to mirror.
+
+    Per-project ``poll_interval_s`` overrides the top-level default; if
+    omitted the loader fills it in from the ``[github] poll_interval_s``
+    field (or, failing that, ``DEFAULT_POLL_INTERVAL_S``).
+    """
+
+    id: str
     poll_interval_s: int = DEFAULT_POLL_INTERVAL_S
+
+
+@dataclass
+class GitHubConfig:
+    """All projects share one PAT (token authorizes the user, not a project).
+
+    ``projects`` is non-empty when the poller is enabled — the loader filters
+    out malformed entries before constructing this dataclass.
+    """
+
+    pat: str
+    projects: list[GitHubProjectConfig]
 
 
 @dataclass
@@ -101,13 +119,48 @@ def load(path: Path | None = None) -> FileConfig:
 
 
 def _parse_github(block: dict) -> GitHubConfig | None:
+    """Build a ``GitHubConfig`` from the ``[github]`` TOML block.
+
+    Accepts both the modern ``[[github.projects]]`` array-of-tables form and
+    the legacy ``[github] project_id = "..."`` single-project form. Returns
+    ``None`` if neither a PAT nor at least one project id is available — the
+    poller stays dormant in that case (unchanged from before ADR 0006).
+    """
     pat = os.environ.get(_PAT_ENV) or block.get("pat")
-    project_id = block.get("project_id")
-    if not pat or not project_id:
+    default_poll = max(
+        int(block.get("poll_interval_s") or DEFAULT_POLL_INTERVAL_S),
+        MIN_POLL_INTERVAL_S,
+    )
+
+    project_blocks = block.get("projects")
+    raw_projects: list[dict] = []
+    if isinstance(project_blocks, list):
+        raw_projects.extend(b for b in project_blocks if isinstance(b, dict))
+
+    # Legacy single-project form: [github] project_id = "..."
+    legacy_id = block.get("project_id")
+    if legacy_id:
+        raw_projects.append({"id": legacy_id, "poll_interval_s": default_poll})
+
+    parsed: list[GitHubProjectConfig] = []
+    seen_ids: set[str] = set()
+    for raw in raw_projects:
+        pid = raw.get("id")
+        if not pid:
+            _log.warning("skipping projects entry without id: %r", raw)
+            continue
+        if pid in seen_ids:
+            continue
+        seen_ids.add(pid)
+        per_poll = max(
+            int(raw.get("poll_interval_s") or default_poll),
+            MIN_POLL_INTERVAL_S,
+        )
+        parsed.append(GitHubProjectConfig(id=str(pid), poll_interval_s=per_poll))
+
+    if not pat or not parsed:
         return None
-    poll = int(block.get("poll_interval_s") or DEFAULT_POLL_INTERVAL_S)
-    poll = max(poll, MIN_POLL_INTERVAL_S)
-    return GitHubConfig(pat=pat, project_id=project_id, poll_interval_s=poll)
+    return GitHubConfig(pat=pat, projects=parsed)
 
 
 def _parse_agents(blocks: list[dict]) -> list[AgentConfig]:

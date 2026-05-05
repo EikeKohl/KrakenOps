@@ -123,6 +123,33 @@ def _gh_status_for(outcome: str) -> str | None:
     }.get(outcome)
 
 
+def dispatch_run(
+    *,
+    engine: Engine,
+    github: GitHubClient,
+    ticket_id: str,
+    ticket_title: str,
+    agent: AgentConfig,
+    backend_endpoint: str,
+) -> asyncio.Task[int]:
+    """Schedule ``run_agent`` as a fire-and-forget asyncio task.
+
+    Used by the manual ``POST /v1/tickets/{id}/spawn`` endpoint (ADR 0003).
+    The auto-spawn-on-Todo path was removed in ADR 0006.
+    """
+    return asyncio.create_task(
+        run_agent(
+            engine=engine,
+            github=github,
+            ticket_id=ticket_id,
+            ticket_title=ticket_title,
+            agent=agent,
+            backend_endpoint=backend_endpoint,
+        ),
+        name=f"krakenops-run-{ticket_id}",
+    )
+
+
 async def run_agent(
     *,
     engine: Engine,

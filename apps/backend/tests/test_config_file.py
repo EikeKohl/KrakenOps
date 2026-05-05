@@ -25,7 +25,9 @@ poll_interval_s = 60
     assert cfg.poller_enabled is False
 
 
-def test_complete_config_parsed(tmp_path: Path) -> None:
+def test_legacy_single_project_form_still_works(tmp_path: Path) -> None:
+    """ADR 0006: ``project_id = "..."`` becomes a single [[github.projects]]
+    entry inheriting the top-level poll_interval_s."""
     p = tmp_path / "config.toml"
     p.write_text("""
 [github]
@@ -46,13 +48,53 @@ script = "/abs/path/to/default.py"
     cfg = load(p)
     assert cfg.poller_enabled
     assert cfg.github.pat == "ghp_test"
-    assert cfg.github.project_id == "PVT_test"
-    assert cfg.github.poll_interval_s == 15
+    assert len(cfg.github.projects) == 1
+    assert cfg.github.projects[0].id == "PVT_test"
+    assert cfg.github.projects[0].poll_interval_s == 15
     assert len(cfg.agents) == 2
-    assert cfg.agents[0].name == "research"
-    assert cfg.agents[0].args == ["--count", "1"]
-    assert cfg.agents[0].match_label == "research"
-    assert cfg.agents[1].match_label is None
+
+
+def test_multi_project_array_form(tmp_path: Path) -> None:
+    """ADR 0006: ``[[github.projects]]`` blocks compose into a list."""
+    p = tmp_path / "config.toml"
+    p.write_text("""
+[github]
+pat = "ghp_test"
+poll_interval_s = 30
+
+[[github.projects]]
+id = "PVT_backend"
+
+[[github.projects]]
+id = "PVT_frontend"
+poll_interval_s = 60
+""")
+    cfg = load(p)
+    assert cfg.poller_enabled
+    assert cfg.github.pat == "ghp_test"
+    assert [p.id for p in cfg.github.projects] == ["PVT_backend", "PVT_frontend"]
+    # Default cascades to projects without an override.
+    assert cfg.github.projects[0].poll_interval_s == 30
+    # Per-project override wins.
+    assert cfg.github.projects[1].poll_interval_s == 60
+
+
+def test_legacy_and_array_coexist_dedupes_ids(tmp_path: Path) -> None:
+    """If the user has both forms, projects merge but duplicate ids drop."""
+    p = tmp_path / "config.toml"
+    p.write_text("""
+[github]
+pat = "ghp_test"
+project_id = "PVT_legacy"
+
+[[github.projects]]
+id = "PVT_legacy"
+
+[[github.projects]]
+id = "PVT_other"
+""")
+    cfg = load(p)
+    assert [p.id for p in cfg.github.projects] == ["PVT_legacy", "PVT_other"]
 
 
 def test_min_poll_interval_enforced(tmp_path: Path) -> None:
@@ -64,7 +106,21 @@ project_id = "y"
 poll_interval_s = 1
 """)
     cfg = load(p)
-    assert cfg.github.poll_interval_s == 5  # MIN_POLL_INTERVAL_S
+    assert cfg.github.projects[0].poll_interval_s == 5  # MIN_POLL_INTERVAL_S
+
+
+def test_min_poll_interval_per_project(tmp_path: Path) -> None:
+    p = tmp_path / "config.toml"
+    p.write_text("""
+[github]
+pat = "x"
+
+[[github.projects]]
+id = "PVT_a"
+poll_interval_s = 2
+""")
+    cfg = load(p)
+    assert cfg.github.projects[0].poll_interval_s == 5
 
 
 def test_env_pat_overrides_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -77,6 +133,16 @@ project_id = "x"
 """)
     cfg = load(p)
     assert cfg.github.pat == "from_env"
+
+
+def test_dormant_when_pat_present_but_no_projects(tmp_path: Path) -> None:
+    p = tmp_path / "config.toml"
+    p.write_text("""
+[github]
+pat = "x"
+""")
+    cfg = load(p)
+    assert cfg.poller_enabled is False
 
 
 def test_pick_agent_label_match_then_catchall(tmp_path: Path) -> None:

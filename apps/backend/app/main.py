@@ -29,12 +29,15 @@ from app.routes import (
     logs_ingest,
     metrics_ingest,
     processes,
+    projects,
     spans,
     tickets,
     traces,
+    workstreams,
 )
 from app.sampler import loop as sampler_loop_module
 from app.sampler import processes as processes_sampler
+from app.workstreams import start_subscriber
 
 _log = logging.getLogger("krakenops.backend")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -61,24 +64,31 @@ async def lifespan(app_: FastAPI) -> AsyncIterator[None]:
         denylist=file_config.processes.denylist,
     )
 
-    poller_task, github_client = start_poller(engine, file_config, _self_endpoint())
+    poller_tasks, github_clients = start_poller(engine, file_config, _self_endpoint())
 
-    # Route handlers (spawn / resume) reach the GitHub client + agent
-    # mappings via app.state — keeps singletons explicit + testable.
-    app_.state.github_client = github_client
+    # ADR 0006: workstreams auto-discovery subscriber on the events topic.
+    workstreams_task = start_subscriber(engine)
+
+    # Route handlers reach the GitHub clients + agent mappings via app.state.
+    # `github_clients` is a list (one per project, ADR 0006); the manual
+    # spawn route uses the first one for now.
+    app_.state.github_clients = github_clients
+    app_.state.github_client = github_clients[0] if github_clients else None
     app_.state.agents = file_config.agents
     app_.state.backend_endpoint = _self_endpoint()
 
     _log.info(
-        "krakenops backend ready (poller=%s, agents=%d, processes=%s)",
-        "on" if poller_task else "dormant",
+        "krakenops backend ready (poller=%s projects, agents=%d, processes=%s)",
+        len(poller_tasks),
         len(file_config.agents),
         "on" if file_config.processes.enabled else "off",
     )
     try:
         yield
     finally:
-        for task in (poller_task, sampler_task, processes_task):
+        background_tasks: list[asyncio.Task[None] | None] = list(poller_tasks)
+        background_tasks.extend([sampler_task, processes_task, workstreams_task])
+        for task in background_tasks:
             if task is None:
                 continue
             task.cancel()
@@ -122,4 +132,6 @@ app.include_router(metrics_ingest.router)
 app.include_router(logs_ingest.router)
 app.include_router(processes.router)
 app.include_router(events.router)
+app.include_router(projects.router)
+app.include_router(workstreams.router)
 app.include_router(realtime_ws.router)

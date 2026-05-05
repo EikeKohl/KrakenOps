@@ -8,9 +8,11 @@ from app.routes import (
     logs_ingest,
     metrics_ingest,
     processes,
+    projects,
     spans,
     tickets,
     traces,
+    workstreams,
 )
 
 __all__ = [
@@ -21,7 +23,9 @@ __all__ = [
     "logs_ingest",
     "metrics_ingest",
     "processes",
+    "projects",
     "spans",
     "tickets",
     "traces",
+    "workstreams",
 ]
