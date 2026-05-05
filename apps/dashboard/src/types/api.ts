@@ -122,15 +122,33 @@ export interface Ticket {
   agent: string | null;
   updated_at_s: number;
   last_seen_at_s?: number;
+  /** ADR 0006 — null for legacy rows pre-migration. */
+  project_id: string | null;
 }
 
 export interface TicketsListResponse {
   tickets: Ticket[];
 }
 
-/** Shape of `data` field on a `kanban` WS message. */
+// --- /v1/projects + project_id on `kanban` snapshot (ADR 0006) ----------
+
+export interface Project {
+  id: string;
+  title: string;
+  owner_login: string;
+  last_seen_at_s: number;
+}
+
+export interface ProjectsListResponse {
+  projects: Project[];
+}
+
+/** Shape of `data` field on a `kanban` WS message (ADR 0006: now also
+ * carries projects so the dashboard can render the project switcher
+ * without a separate fetch). */
 export interface KanbanSnapshot {
   tickets: Ticket[];
+  projects: Project[];
 }
 
 // --- /v1/agents -----------------------------------------------------------
@@ -219,6 +237,51 @@ export type ExternalActivity = ExternalMetricRecord | ExternalEventRecord;
 /** Response body of `GET /v1/events`. */
 export interface ExternalEventsListResponse {
   events: ExternalActivity[];
+}
+
+// --- /v1/workstreams + `workstreams` WS topic (ADR 0006) ----------------
+
+export type WorkstreamSource = "claude_code" | "tentacle" | "manual";
+export type WorkstreamBindMethod = "mcp" | "manual" | "auto";
+
+export interface TodoItem {
+  /** Mirrors Claude Code's TodoWrite shape. */
+  content: string;
+  activeForm?: string;
+  status: "pending" | "in_progress" | "completed";
+}
+
+export interface Workstream {
+  id: number;
+  source: WorkstreamSource;
+  external_id: string | null;
+  label: string | null;
+  ticket_id: string | null;
+  project_id: string | null;
+  bind_method: WorkstreamBindMethod | null;
+  started_at_s: number;
+  last_seen_at_s: number;
+  ended_at_s: number | null;
+  todos: TodoItem[];
+  todos_updated_at_s: number | null;
+}
+
+export interface WorkstreamsListResponse {
+  workstreams: Workstream[];
+}
+
+/** Shape of `data` on a `workstreams` WS message. */
+export interface WorkstreamsSnapshot {
+  workstreams: Workstream[];
+}
+
+export interface BindWorkstreamResponse {
+  bound: true;
+  bind_method: WorkstreamBindMethod;
+}
+
+export interface UnbindWorkstreamResponse {
+  bound: false;
 }
 
 // --- command endpoint responses (ADR 0003) ------------------------------
