@@ -1,17 +1,92 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #0b0b0d;
-  --color-foreground: #f4f4f5;
-  --color-muted: #18181b;
-  --color-muted-foreground: #a1a1aa;
-  --color-border: #27272a;
+  --color-background: #07080b;
+  --color-surface: #0f1015;
+  --color-surface-2: #15171f;
+  --color-surface-3: #1c1f2a;
+  --color-foreground: #e7e9ee;
+  --color-muted: #15171f;
+  --color-muted-foreground: #8b8fa3;
+  --color-border: #242635;
+  --color-border-subtle: #1a1c28;
   --color-accent: #14b8a6;
+  --color-accent-glow: rgba(20, 184, 166, 0.18);
+  --color-violet: #8b5cf6;
+  --color-cyan: #22d3ee;
 }
 
 html,
 body {
   background: var(--color-background);
   color: var(--color-foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-family:
+    "Inter",
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-image:
+    radial-gradient(
+      ellipse 1200px 600px at 20% -10%,
+      rgba(20, 184, 166, 0.08),
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 800px 500px at 90% 0%,
+      rgba(139, 92, 246, 0.06),
+      transparent 60%
+    );
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+/* Pulsing live indicator. */
+@keyframes ko-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
+}
+
+.ko-live-dot {
+  animation: ko-pulse 1.6s ease-in-out infinite;
+}
+
+/* Subtle scrollbar styling so dark panels don't get a bright OS-default bar. */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted-foreground);
+}
+
+/* Standard panel surface — used for Panel and rich subcards. */
+.ko-surface {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+}
+.ko-surface-2 {
+  background-color: var(--color-surface-2);
+  border: 1px solid var(--color-border);
 }

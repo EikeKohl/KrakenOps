@@ -52,9 +52,13 @@ export function KanbanPanel({ className }: { className?: string }) {
     body = <p className="py-8 text-center text-xs text-[--color-muted-foreground]">Loading…</p>;
   } else if (tickets.length === 0) {
     body = (
-      <p className="py-8 text-center text-xs text-[--color-muted-foreground]">
-        No tickets yet. Configure GitHub via <code>~/.krakenops/config.toml</code>.
-      </p>
+      <div className="rounded-lg border border-dashed border-[--color-border] bg-[--color-surface-2]/40 px-3 py-6 text-center text-xs text-[--color-muted-foreground]">
+        <p className="mb-1 font-medium text-[--color-foreground]">No tickets yet.</p>
+        <p>
+          Run <code className="rounded bg-[--color-surface] px-1 py-px">scripts/setup.sh</code>{" "}
+          to wire up GitHub Projects.
+        </p>
+      </div>
     );
   } else {
     const grouped = groupByStatus(tickets);
@@ -65,8 +69,11 @@ export function KanbanPanel({ className }: { className?: string }) {
           if (list.length === 0) return null;
           return (
             <section key={status}>
-              <h3 className="mb-1 text-[10px] font-medium uppercase tracking-wider text-[--color-muted-foreground]">
-                {status} <span className="opacity-60">· {list.length}</span>
+              <h3 className="mb-1.5 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-[--color-muted-foreground]">
+                <span>{status}</span>
+                <span className="rounded bg-[--color-surface-2] px-1.5 py-px font-mono text-[10px] text-[--color-foreground]">
+                  {list.length}
+                </span>
               </h3>
               <div className="flex flex-col gap-1.5">
                 {list.map((t) => (
@@ -83,6 +90,8 @@ export function KanbanPanel({ className }: { className?: string }) {
   return (
     <Panel
       title="Kanban Queue"
+      subtitle="GitHub Projects mirror"
+      accent="cyan"
       className={className}
       trailing={
         <span className="text-[10px] uppercase tracking-wider text-[--color-muted-foreground]">

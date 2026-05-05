@@ -12,7 +12,7 @@
 import { API_BASE } from "@/lib/api";
 import { useEffect, useRef, useState } from "react";
 
-export type Topic = "metrics" | "traces" | "kanban";
+export type Topic = "metrics" | "traces" | "kanban" | "processes" | "events";
 
 export interface TopicMessage<T = unknown> {
   topic: Topic;
@@ -22,7 +22,7 @@ export interface TopicMessage<T = unknown> {
 
 export const WS_URL: string = `${API_BASE.replace(/^http/, "ws")}/v1/ws`;
 
-const ALL_TOPICS: Topic[] = ["metrics", "traces", "kanban"];
+const ALL_TOPICS: Topic[] = ["metrics", "traces", "kanban", "processes", "events"];
 
 type Listener = (msg: TopicMessage) => void;
 

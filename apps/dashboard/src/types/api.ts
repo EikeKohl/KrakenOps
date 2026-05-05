@@ -153,6 +153,74 @@ export interface AgentRunsResponse {
   runs: AgentRun[];
 }
 
+// --- /v1/processes + `processes` WS topic (ADR 0005) -------------------
+
+/**
+ * One row of `discovered_processes` — a host process matched by the
+ * per-process psutil sampler's allowlist. Mirrors the shape published on the
+ * `processes` WS topic and returned by `GET /v1/processes`. See
+ * tests/contract/schemas/discovered_process.schema.json.
+ */
+export interface DiscoveredProcess {
+  pid: number;
+  name: string;
+  cmdline: string;
+  cpu_pct: number;
+  rss_mb: number;
+  first_seen_ns: number;
+  last_seen_ns: number;
+}
+
+/** Shape of `data` on a `processes` WS frame and `GET /v1/processes`. */
+export interface DiscoveredProcessSnapshot {
+  processes: DiscoveredProcess[];
+}
+
+/** Response body of `POST /v1/processes/{pid}/kill`. */
+export interface KillProcessResponse {
+  killed: boolean;
+  pid: number;
+  method: "terminate" | "kill" | "already_exited";
+}
+
+// --- /v1/events + `events` WS topic (ADR 0005) --------------------------
+
+/**
+ * Aggregate counter datapoint emitted by an external OTel source
+ * (e.g. Claude Code). See tests/contract/schemas/claude_code_metric.schema.json.
+ */
+export interface ExternalMetricRecord {
+  kind: "metric";
+  service_name: string;
+  metric_name: string;
+  value: number;
+  unit: string | null;
+  attributes: Record<string, unknown>;
+  ts_ns: number;
+}
+
+/**
+ * Per-record event emitted by an external OTel source. See
+ * tests/contract/schemas/claude_code_event.schema.json.
+ */
+export interface ExternalEventRecord {
+  kind: "event";
+  service_name: string;
+  event_name: string;
+  prompt_id: string | null;
+  session_id: string | null;
+  attributes: Record<string, unknown>;
+  observed_at_ns: number;
+}
+
+/** Discriminated union over the two `events` WS envelope kinds. */
+export type ExternalActivity = ExternalMetricRecord | ExternalEventRecord;
+
+/** Response body of `GET /v1/events`. */
+export interface ExternalEventsListResponse {
+  events: ExternalActivity[];
+}
+
 // --- command endpoint responses (ADR 0003) ------------------------------
 
 export interface SpawnTicketResponse {
