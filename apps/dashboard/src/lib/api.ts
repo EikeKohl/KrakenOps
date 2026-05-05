@@ -6,6 +6,7 @@
 import type {
   AgentRunsResponse,
   BindWorkstreamResponse,
+  CostsByTicketResponse,
   CostsResponse,
   DiscoveredProcessSnapshot,
   ExternalEventsListResponse,
@@ -62,6 +63,9 @@ export const api = {
   },
   costs: (window: "1h" | "24h" | "7d" = "24h") =>
     apiGet<CostsResponse>(`/v1/costs?window=${window}`),
+  /** ADR 0008 — per-ticket rollup. */
+  costsByTicket: (window: "1h" | "24h" | "7d" = "24h") =>
+    apiGet<CostsByTicketResponse>(`/v1/costs?window=${window}&group_by=ticket`),
 
   // ADR 0002 — kanban mirror.
   listTickets: () => apiGet<TicketsListResponse>("/v1/tickets"),

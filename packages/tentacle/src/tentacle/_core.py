@@ -93,6 +93,13 @@ def init(
 
             _maybe_enable_anthropic()
 
+        # ADR 0008 — share the host:port with the status helpers so
+        # tentacle.claim_ticket / set_status / set_todos can POST without
+        # a second config call.
+        from tentacle import _status
+
+        _status._set_api_base(ep)
+
         _initialized = True
         _log.info("tentacle initialized: endpoint=%s service=%s", ep, service_name)
 

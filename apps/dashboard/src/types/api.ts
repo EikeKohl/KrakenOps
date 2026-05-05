@@ -96,6 +96,23 @@ export interface CostsResponse {
   by_model: CostByModel[];
 }
 
+/** ADR 0008 — per-ticket rollup served from `/v1/costs?group_by=ticket`. */
+export interface CostByTicket {
+  ticket_id: string;
+  ticket_title: string;
+  project_id: string | null;
+  project_title: string | null;
+  cost_usd: number;
+  calls: number;
+}
+
+export interface CostsByTicketResponse {
+  window: "1h" | "24h" | "7d";
+  since_ns: number;
+  total_cost_usd: number;
+  by_ticket: CostByTicket[];
+}
+
 // --- /v1/ws metrics topic data ------------------------------------------
 
 export interface MetricsSnapshot {

@@ -1,9 +1,9 @@
 "use client";
 
 import { api } from "@/lib/api";
-import { formatRelativeTime } from "@/lib/format";
+import { formatCost, formatRelativeTime } from "@/lib/format";
 import type { Ticket } from "@/types/api";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 const STATUS_BADGE: Record<string, string> = {
   Todo: "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",
@@ -14,6 +14,18 @@ const STATUS_BADGE: Record<string, string> = {
 
 export function TicketCard({ ticket }: { ticket: Ticket }) {
   const qc = useQueryClient();
+
+  // ADR 0008 — per-ticket spend chip. React Query dedupes the request
+  // across all rendered TicketCards, so this stays at one fetch / 60 s.
+  const costsQuery = useQuery({
+    queryKey: ["costs", "by-ticket", "24h"],
+    queryFn: () => api.costsByTicket("24h"),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  const ticketCost = costsQuery.data?.by_ticket.find(
+    (t) => t.ticket_id === ticket.id,
+  )?.cost_usd;
 
   const spawn = useMutation({
     mutationFn: () => api.spawnTicket(ticket.id),
@@ -54,9 +66,19 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
         </span>
       </div>
 
-      <div className="mt-1 flex items-center justify-between text-[11px] text-[--color-muted-foreground]">
+      <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-[--color-muted-foreground]">
         <span className="truncate">{ticket.agent ? `→ ${ticket.agent}` : "no agent assigned"}</span>
-        <span className="shrink-0">{formatRelativeTime(ticket.updated_at_s * 1_000_000_000)}</span>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {ticketCost != null && ticketCost > 0 && (
+            <span
+              className="inline-flex items-baseline gap-1 rounded border border-teal-500/30 bg-teal-500/10 px-1 py-px font-mono text-[10px] tabular-nums text-teal-200"
+              title="LLM spend in the last 24h on this ticket (Claude Code)"
+            >
+              {formatCost(ticketCost)}
+            </span>
+          )}
+          <span>{formatRelativeTime(ticket.updated_at_s * 1_000_000_000)}</span>
+        </div>
       </div>
 
       {(showSpawn || showResume) && (

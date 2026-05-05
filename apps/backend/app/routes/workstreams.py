@@ -24,6 +24,7 @@ from app.workstreams.repo import (
     resolve_workstream,
     unbind_workstream,
     update_todos,
+    upsert_external_workstream,
 )
 
 router = APIRouter(prefix="/v1", tags=["workstreams"])
@@ -47,6 +48,26 @@ class ClaimRequest(BaseModel):
 class TodosRequest(BaseModel):
     todos: list[dict]
     session_id: str | None = None
+    # ADR 0008: tentacle agents pass source="tentacle"; default keeps
+    # the Claude Code path backwards-compatible.
+    source: str = "claude_code"
+
+
+class ClaimRequestSourced(ClaimRequest):
+    source: str = "claude_code"
+
+
+class RegisterRequest(BaseModel):
+    """ADR 0008 — bootstrap a workstream for any source.
+
+    Idempotent on ``(source, external_id)``. Used by the tentacle SDK
+    (``tentacle.register_workstream``) and by future agent runtimes
+    that don't have OTel auto-discovery.
+    """
+
+    source: str
+    external_id: str
+    label: str | None = None
 
 
 @router.get("/workstreams")
@@ -86,19 +107,22 @@ def unbind_endpoint(ws_id: int) -> dict[str, Any]:
 
 
 @router.post("/workstreams/claim")
-def claim_endpoint(body: ClaimRequest) -> dict[str, Any]:
-    """ADR 0007 — bind the calling session's workstream to a ticket.
+def claim_endpoint(body: ClaimRequestSourced) -> dict[str, Any]:
+    """ADR 0007 (Claude Code) + ADR 0008 (tentacle) — bind the calling
+    session's workstream to a ticket.
 
-    Resolves the workstream via ``session_id`` if given, else by the
-    most-recently-active claude_code workstream (single-session case).
-    Marks the binding ``method="mcp"`` so the dashboard can distinguish
-    agent-initiated claims from manual ones.
+    Resolves the workstream via ``(source, session_id)`` if given, else
+    by the most-recently-active workstream of that source. Marks the
+    binding ``method="mcp"`` — ADR 0008 keeps the same label so the
+    dashboard's existing ``via MCP`` badge applies to tentacle agents
+    too.
     """
-    ws_id = resolve_workstream(engine, source="claude_code", session_id=body.session_id)
+    ws_id = resolve_workstream(engine, source=body.source, session_id=body.session_id)
     if ws_id is None:
         raise HTTPException(
             404,
-            "no active claude_code workstream — start a Claude Code session first"
+            f"no active {body.source} workstream — register one first"
+            " (tentacle.register_workstream / start a Claude Code session)"
             " or pass an explicit session_id",
         )
     ok = bind_workstream(
@@ -116,17 +140,42 @@ def claim_endpoint(body: ClaimRequest) -> dict[str, Any]:
 
 @router.post("/workstreams/todos")
 def todos_endpoint(body: TodosRequest) -> dict[str, Any]:
-    """ADR 0007 — replace the calling session's TODO list (MCP path).
+    """ADR 0007 (Claude Code) + ADR 0008 (tentacle) — replace the
+    calling session's TODO list.
 
     The hook route ``/v1/hooks/claude/post-tool-use`` covers the
-    automatic case (Claude Code's PostToolUse(TodoWrite) hook). This
-    endpoint exists for explicit MCP calls and other agents that want
-    to mirror their checklist without going through the hook payload
-    shape.
+    automatic Claude Code case. This endpoint exists for explicit MCP
+    calls and the tentacle SDK's ``set_todos`` — both share the same
+    payload shape with an optional ``source`` discriminator.
     """
-    ws_id = resolve_workstream(engine, source="claude_code", session_id=body.session_id)
+    ws_id = resolve_workstream(engine, source=body.source, session_id=body.session_id)
     if ws_id is None:
-        raise HTTPException(404, "no active claude_code workstream")
+        raise HTTPException(404, f"no active {body.source} workstream")
     update_todos(engine, ws_id, body.todos)
     BUS.publish("workstreams", {"workstreams": list_active_workstreams(engine)})
     return {"workstream_id": ws_id, "todos_count": len(body.todos)}
+
+
+@router.post("/workstreams/register")
+def register_endpoint(body: RegisterRequest) -> dict[str, Any]:
+    """ADR 0008 — explicit workstream bootstrap for any source.
+
+    Idempotent on ``(source, external_id)``: a second call with the same
+    pair just refreshes ``last_seen_at_s`` and returns the existing id.
+    """
+    source = body.source.strip()
+    if not source:
+        raise HTTPException(400, "source required")
+    external_id = body.external_id.strip()
+    if not external_id:
+        raise HTTPException(400, "external_id required")
+    label = body.label or f"{source} · {external_id[:8]}"
+    ws_id = upsert_external_workstream(
+        engine, source=source, external_id=external_id, label=label,
+    )
+    BUS.publish("workstreams", {"workstreams": list_active_workstreams(engine)})
+    return {
+        "workstream_id": ws_id,
+        "source": source,
+        "external_id": external_id,
+    }
