@@ -331,6 +331,76 @@ def test_todos_endpoint_replaces_list(client) -> None:
     assert [t["status"] for t in rows[0]["todos"]] == ["completed", "in_progress"]
 
 
+def test_register_endpoint_creates_workstream(client) -> None:
+    """ADR 0008: tentacle / external SDKs bootstrap a workstream
+    explicitly via /v1/workstreams/register."""
+    resp = client.post(
+        "/v1/workstreams/register",
+        json={
+            "source": "tentacle",
+            "external_id": "tent-uuid-1",
+            "label": "research run #1",
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["source"] == "tentacle"
+    assert body["external_id"] == "tent-uuid-1"
+    ws_id = body["workstream_id"]
+
+    # Idempotent on (source, external_id) — second call returns the same id.
+    resp2 = client.post(
+        "/v1/workstreams/register",
+        json={"source": "tentacle", "external_id": "tent-uuid-1"},
+    )
+    assert resp2.status_code == 200
+    assert resp2.json()["workstream_id"] == ws_id
+
+
+def test_register_endpoint_400_missing_fields(client) -> None:
+    resp = client.post(
+        "/v1/workstreams/register",
+        json={"source": "", "external_id": "x"},
+    )
+    assert resp.status_code == 400
+
+
+def test_claim_endpoint_routes_tentacle_source(client) -> None:
+    """ADR 0008: claim_endpoint accepts source=tentacle alongside the
+    default source=claude_code."""
+    now_s = int(time.time())
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO projects (id, title, owner_login, last_seen_at_s)"
+                " VALUES ('PVT_a', 'A', 'me', :ts)"
+            ),
+            {"ts": now_s},
+        )
+        conn.execute(
+            text(
+                "INSERT INTO tickets (id, title, status, project_id, updated_at_s, last_seen_at_s)"
+                " VALUES ('T-tent', 't', 'Todo', 'PVT_a', :ts, :ts)"
+            ),
+            {"ts": now_s},
+        )
+    target_id = repo.upsert_external_workstream(
+        engine, source="tentacle", external_id="tent-2", label="t2",
+    )
+    # Add a Claude Code workstream so the heuristic could go either way
+    # without the source filter.
+    repo.upsert_external_workstream(
+        engine, source="claude_code", external_id="claude-distractor", label="c",
+    )
+
+    resp = client.post(
+        "/v1/workstreams/claim",
+        json={"ticket_id": "T-tent", "source": "tentacle"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["workstream_id"] == target_id
+
+
 def test_list_projects_route(client) -> None:
     with engine.begin() as conn:
         conn.execute(
