@@ -5,17 +5,21 @@
 
 import type {
   AgentRunsResponse,
+  BindWorkstreamResponse,
   CostsResponse,
   DiscoveredProcessSnapshot,
   ExternalEventsListResponse,
   HealthResponse,
   KillProcessResponse,
+  ProjectsListResponse,
   ResumeTicketResponse,
   SpansListResponse,
   SpawnTicketResponse,
   StopAgentResponse,
   TicketsListResponse,
   TracesListResponse,
+  UnbindWorkstreamResponse,
+  WorkstreamsListResponse,
 } from "@/types/api";
 
 // IPv4 literal on purpose: the backend binds to 127.0.0.1 only, but modern
@@ -77,6 +81,25 @@ export const api = {
   listProcesses: () => apiGet<DiscoveredProcessSnapshot>("/v1/processes"),
   killProcess: (pid: number) =>
     apiPost<KillProcessResponse>(`/v1/processes/${encodeURIComponent(pid)}/kill`),
+
+  // ADR 0006 — projects + workstreams.
+  listProjects: () => apiGet<ProjectsListResponse>("/v1/projects"),
+  listWorkstreams: (params?: { activeOnly?: boolean; limit?: number }) => {
+    const search = new URLSearchParams();
+    if (params?.activeOnly === false) search.set("active_only", "false");
+    if (params?.limit != null) search.set("limit", String(params.limit));
+    const qs = search.toString();
+    return apiGet<WorkstreamsListResponse>(
+      `/v1/workstreams${qs ? `?${qs}` : ""}`,
+    );
+  },
+  bindWorkstream: (id: number, body: { ticket_id: string; project_id?: string }) =>
+    apiPost<BindWorkstreamResponse, typeof body>(
+      `/v1/workstreams/${encodeURIComponent(id)}/bind`,
+      body,
+    ),
+  unbindWorkstream: (id: number) =>
+    apiPost<UnbindWorkstreamResponse>(`/v1/workstreams/${encodeURIComponent(id)}/unbind`),
   listEvents: (params?: { service?: string; limit?: number; since?: number }) => {
     const search = new URLSearchParams();
     if (params?.service) search.set("service", params.service);

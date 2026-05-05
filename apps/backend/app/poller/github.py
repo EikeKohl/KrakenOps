@@ -37,8 +37,20 @@ class TicketItem:
     labels: list[str]     # for matching against agent_mappings.match_label
 
 
+@dataclass
+class ProjectSnapshot:
+    """One poll-tick's worth of state for a single project (ADR 0006)."""
+
+    project_id: str
+    title: str
+    owner_login: str
+    items: list[TicketItem]
+
+
 class GitHubClient(Protocol):
-    async def list_items(self) -> list[TicketItem]: ...
+    project_id: str
+
+    async def list_items(self) -> ProjectSnapshot: ...
     async def set_status(self, item_id: str, status: str) -> None: ...
     async def aclose(self) -> None: ...
 
@@ -49,6 +61,11 @@ _LIST_QUERY = """
 query($project: ID!) {
   node(id: $project) {
     ... on ProjectV2 {
+      title
+      owner {
+        ... on User { login }
+        ... on Organization { login }
+      }
       fields(first: 50) {
         nodes {
           ... on ProjectV2SingleSelectField {
@@ -102,7 +119,7 @@ mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
 
 class GitHubGraphQLClient:
     def __init__(self, pat: str, project_id: str, http: httpx.AsyncClient | None = None) -> None:
-        self._project_id = project_id
+        self.project_id = project_id
         self._http = http or httpx.AsyncClient(
             timeout=10.0,
             headers={
@@ -116,15 +133,18 @@ class GitHubGraphQLClient:
         self._status_field_id: str | None = None
         self._status_option_ids: dict[str, str] = {}
 
-    async def list_items(self) -> list[TicketItem]:
-        data = await self._gql(_LIST_QUERY, {"project": self._project_id})
+    async def list_items(self) -> ProjectSnapshot:
+        data = await self._gql(_LIST_QUERY, {"project": self.project_id})
         node = data.get("node") or {}
         self._cache_status_field(node.get("fields", {}).get("nodes") or [])
+
+        title = str(node.get("title") or "(untitled project)")
+        owner_login = str((node.get("owner") or {}).get("login") or "")
 
         items_out: list[TicketItem] = []
         for raw in (node.get("items", {}).get("nodes") or []):
             content = raw.get("content") or {}
-            title = content.get("title") or "(untitled)"
+            content_title = content.get("title") or "(untitled)"
             url = content.get("url")
             labels = [
                 lab["name"]
@@ -136,9 +156,16 @@ class GitHubGraphQLClient:
                     status = fv["name"]
                     break
             items_out.append(
-                TicketItem(id=raw["id"], title=title, status=status, url=url, labels=labels)
+                TicketItem(
+                    id=raw["id"], title=content_title, status=status, url=url, labels=labels,
+                )
             )
-        return items_out
+        return ProjectSnapshot(
+            project_id=self.project_id,
+            title=title,
+            owner_login=owner_login,
+            items=items_out,
+        )
 
     async def set_status(self, item_id: str, status: str) -> None:
         if self._status_field_id is None or status not in self._status_option_ids:
@@ -152,7 +179,7 @@ class GitHubGraphQLClient:
         await self._gql(
             _UPDATE_MUTATION,
             {
-                "project": self._project_id,
+                "project": self.project_id,
                 "item": item_id,
                 "field": self._status_field_id,
                 "option": option_id,
@@ -188,12 +215,27 @@ class GitHubGraphQLClient:
 class FakeGitHubClient:
     """In-memory project board. Mutations land instantly."""
 
-    def __init__(self, items: list[TicketItem] | None = None) -> None:
+    def __init__(
+        self,
+        items: list[TicketItem] | None = None,
+        *,
+        project_id: str = "PVT_fake",
+        title: str = "Fake Project",
+        owner_login: str = "fake-user",
+    ) -> None:
+        self.project_id = project_id
+        self._title = title
+        self._owner_login = owner_login
         self._items: dict[str, TicketItem] = {it.id: it for it in (items or [])}
         self.status_calls: list[tuple[str, str]] = []   # for assertions in tests
 
-    async def list_items(self) -> list[TicketItem]:
-        return list(self._items.values())
+    async def list_items(self) -> ProjectSnapshot:
+        return ProjectSnapshot(
+            project_id=self.project_id,
+            title=self._title,
+            owner_login=self._owner_login,
+            items=list(self._items.values()),
+        )
 
     async def set_status(self, item_id: str, status: str) -> None:
         self.status_calls.append((item_id, status))

@@ -220,8 +220,13 @@ def list_user_projects(pat: str) -> tuple[list[dict[str, str]] | None, str | Non
     return out, None
 
 
-def _pick_project_interactive(pat: str) -> str | None:
-    """List projects via GraphQL and let the user pick one. None on cancel."""
+def _pick_projects_interactive(pat: str) -> list[str] | None:
+    """List projects via GraphQL and let the user pick **one or more**.
+
+    Returns the chosen project ids (in display order) or ``None`` on cancel.
+    Accepts comma- or space-separated indices ("1,3,4" or "1 3 4"), the
+    literal "all", or a manually pasted PVT_ id.
+    """
     print()
     print(dim("  fetching your projects…"))
     projects, err = list_user_projects(pat)
@@ -254,28 +259,45 @@ def _pick_project_interactive(pat: str) -> str | None:
         meta = dim(f"· {owner_prefix}{p['id']}")
         print(f"    {idx_label}. {bold(p['title'])} {meta}")
     print()
+    print(dim('  multi-select: "1,3,4" or "1 3 4" or "all". paste a PVT_… id'))
+    print(dim("  to add one not on the list. blank skips."))
     while True:
-        sel = ask(
-            "pick a number (or paste a project_id, blank to skip)",
-            default="",
-        ).strip()
+        sel = ask("projects to mirror", default="").strip()
         if not sel:
             return None
-        if sel.isdigit():
-            idx = int(sel)
-            if 1 <= idx <= len(projects):
-                return projects[idx - 1]["id"]
-            print(yellow(f"  ! out of range (1–{len(projects)})"))
+        if sel.lower() == "all":
+            return [p["id"] for p in projects]
+        # Manually-pasted node id (accepts a comma-separated list of ids).
+        if not any(c.isdigit() for c in sel.split(",")[0].strip()):
+            return [s.strip() for s in sel.split(",") if s.strip()]
+        # Indices — accept commas or whitespace as separators.
+        tokens = [t for t in sel.replace(",", " ").split() if t]
+        chosen: list[str] = []
+        invalid = False
+        for tok in tokens:
+            if tok.isdigit():
+                idx = int(tok)
+                if 1 <= idx <= len(projects):
+                    pid = projects[idx - 1]["id"]
+                    if pid not in chosen:
+                        chosen.append(pid)
+                    continue
+                print(yellow(f"  ! {idx} out of range (1–{len(projects)})"))
+                invalid = True
+                break
+            # Mixed: "1, PVT_..." — treat the non-digit as a manual id.
+            if tok not in chosen:
+                chosen.append(tok)
+        if invalid or not chosen:
             continue
-        # Looks like a manually pasted ID — accept it.
-        return sel
+        return chosen
 
 
 def github_block() -> dict[str, Any] | None:
     section("GitHub Projects integration (optional)")
     print(
-        "  KrakenOps mirrors a GitHub Projects v2 board into the Kanban panel"
-        "\n  and spawns local agents when a ticket transitions to 'Todo'."
+        "  KrakenOps mirrors one or more GitHub Projects v2 boards into the\n"
+        "  Kanban panel. Each board becomes a tab; tickets are auto-grouped."
     )
     print(dim("  Skip this step to leave the poller dormant — telemetry still works."))
     print()
@@ -291,40 +313,48 @@ def github_block() -> dict[str, Any] | None:
         print(yellow("  ✗ no PAT entered — skipping."))
         return None
 
-    project_id = _pick_project_interactive(pat)
-    if project_id is None:
+    project_ids = _pick_projects_interactive(pat)
+    if not project_ids:
         # Fall back to manual entry so the wizard still works when listing failed.
         print()
         print(
             dim(
-                "  paste the project node id manually (looks like\n"
-                "  PVT_kwDOAxxxxxxxxxxxxxxxxxx) — leave blank to skip."
+                "  paste one or more project node ids manually, comma-separated\n"
+                "  (looks like PVT_kwDOAxxxxxxxxxxxxxxxxxx). Blank skips."
             )
         )
-        project_id = ask("GitHub Projects v2 node id", default="")
-        if not project_id:
+        manual = ask("GitHub Projects v2 node id(s)", default="")
+        if not manual:
             print(yellow("  ✗ no project id — skipping."))
             return None
+        project_ids = [s.strip() for s in manual.split(",") if s.strip()]
 
-    poll_s = ask("poll interval seconds", default="30")
+    poll_s = ask("default poll interval seconds", default="30")
     try:
         poll = max(int(poll_s), 5)
     except ValueError:
         poll = 30
 
+    # Verify each id resolves before saving — bad ids are easy to typo.
     print()
     print(dim("  testing GitHub credentials…"))
-    ok, info = github_check(pat, project_id)
-    if not ok:
-        print(red(f"  ✗ check failed: {info}"))
-        if not confirm("Save anyway?", default=False):
-            return None
-    else:
-        print(green(f"  ✓ project found: {info}"))
+    verified: list[str] = []
+    for pid in project_ids:
+        ok, info = github_check(pat, pid)
+        if ok:
+            print(green(f"  ✓ {pid} → {info}"))
+            verified.append(pid)
+        else:
+            print(red(f"  ✗ {pid}: {info}"))
+            if confirm(f"  keep {pid} in the config anyway?", default=False):
+                verified.append(pid)
+    if not verified:
+        print(yellow("  ✗ no projects passed validation — skipping GitHub config."))
+        return None
 
     return {
         "pat": pat,
-        "project_id": project_id,
+        "project_ids": verified,
         "poll_interval_s": poll,
     }
 
@@ -403,20 +433,25 @@ def write_config(github: dict[str, Any] | None, processes: dict[str, Any]) -> No
 
     lines: list[str] = []
     lines.append("# KrakenOps backend config — generated by scripts/setup.sh")
-    lines.append("# See ADR 0002 + ADR 0005 for the full schema.")
+    lines.append("# See ADRs 0002, 0005, 0006 for the full schema.")
     lines.append("")
 
     if github:
         lines.append("[github]")
         lines.append(f'pat = "{github["pat"]}"')
-        lines.append(f'project_id = "{github["project_id"]}"')
         lines.append(f"poll_interval_s = {github['poll_interval_s']}")
         lines.append("")
+        for pid in github["project_ids"]:
+            lines.append("[[github.projects]]")
+            lines.append(f'id = "{pid}"')
+            lines.append("")
     else:
         lines.append("# [github] — not configured. Add when you're ready:")
         lines.append('# pat = "ghp_…"          # or set $KRAKENOPS_GITHUB_PAT')
-        lines.append('# project_id = "PVT_…"')
         lines.append("# poll_interval_s = 30")
+        lines.append("")
+        lines.append("# [[github.projects]]")
+        lines.append('# id = "PVT_…"')
         lines.append("")
 
     lines.append("[processes]")
@@ -500,9 +535,12 @@ def backend_check() -> None:
 def summary(github: dict[str, Any] | None, processes: dict[str, Any]) -> None:
     section("All set")
     print(f"  ▸ config:     {CONFIG_PATH}")
-    print(
-        f"  ▸ kanban:     {green('configured') if github else dim('dormant — no GitHub creds')}"
-    )
+    if github:
+        n = len(github["project_ids"])
+        word = "project" if n == 1 else "projects"
+        print(f"  ▸ kanban:     {green(f'configured ({n} {word})')}")
+    else:
+        print(f"  ▸ kanban:     {dim('dormant — no GitHub creds')}")
     if processes["allowlist"]:
         print(f"  ▸ processes:  tracking {', '.join(processes['allowlist'])}")
     else:

@@ -16,7 +16,7 @@ from sqlmodel import Session
 from app.config_file import pick_agent_for
 from app.db import engine as engine_singleton
 from app.db.session import get_session
-from app.poller.loop import _default_dispatch
+from app.poller.orchestrator import dispatch_run
 
 _log = logging.getLogger("krakenops.routes.tickets")
 
@@ -27,7 +27,7 @@ router = APIRouter(prefix="/v1", tags=["tickets"])
 def list_tickets(session: Annotated[Session, Depends(get_session)]) -> dict[str, Any]:
     rows = session.exec(  # type: ignore[call-arg]
         text(
-            "SELECT id, title, status, url, agent, updated_at_s, last_seen_at_s"
+            "SELECT id, title, status, url, agent, updated_at_s, last_seen_at_s, project_id"
             " FROM tickets ORDER BY updated_at_s DESC"
         )
     ).all()
@@ -41,19 +41,34 @@ def list_tickets(session: Annotated[Session, Depends(get_session)]) -> dict[str,
                 "agent": r[4],
                 "updated_at_s": r[5],
                 "last_seen_at_s": r[6],
+                "project_id": r[7],
             }
             for r in rows
         ]
     }
 
 
+def _client_for_ticket(request: Request, project_id: str | None) -> Any:
+    """Return the GitHubClient for a ticket's project (ADR 0006).
+
+    Falls back to the legacy single ``github_client`` attribute when the
+    list isn't present (older tests + fake clients) so the migration
+    remains backwards compatible.
+    """
+    clients = getattr(request.app.state, "github_clients", None) or []
+    if project_id:
+        for c in clients:
+            if getattr(c, "project_id", None) == project_id:
+                return c
+    legacy = getattr(request.app.state, "github_client", None)
+    if legacy is not None:
+        return legacy
+    return clients[0] if clients else None
+
+
 @router.post("/tickets/{ticket_id}/spawn", status_code=202)
 async def spawn_ticket(ticket_id: str, request: Request) -> dict[str, Any]:
     """Manually run the configured agent for a ticket. See ADR 0003."""
-    github = getattr(request.app.state, "github_client", None)
-    if github is None:
-        raise HTTPException(503, "github poller dormant; nothing to spawn through")
-
     agents = getattr(request.app.state, "agents", []) or []
     backend_endpoint = getattr(
         request.app.state, "backend_endpoint", "http://127.0.0.1:8787/v1/traces"
@@ -61,12 +76,14 @@ async def spawn_ticket(ticket_id: str, request: Request) -> dict[str, Any]:
 
     with engine_singleton.begin() as conn:
         ticket_row = conn.execute(
-            text("SELECT title, status, agent FROM tickets WHERE id = :id"),
+            text(
+                "SELECT title, status, agent, project_id FROM tickets WHERE id = :id"
+            ),
             {"id": ticket_id},
         ).first()
         if ticket_row is None:
             raise HTTPException(404, "ticket not found")
-        title, _status, persisted_agent = ticket_row
+        title, _status, persisted_agent, project_id = ticket_row
 
         running = conn.execute(
             text(
@@ -77,6 +94,10 @@ async def spawn_ticket(ticket_id: str, request: Request) -> dict[str, Any]:
         if running is not None:
             raise HTTPException(409, "agent already running for this ticket")
 
+    github = _client_for_ticket(request, project_id)
+    if github is None:
+        raise HTTPException(503, "github poller dormant; nothing to spawn through")
+
     # Prefer the agent the poller previously matched (so spawn behaves the
     # same as auto-dispatch); fall back to the catch-all if any.
     agent = next((a for a in agents if a.name == persisted_agent), None)
@@ -85,7 +106,7 @@ async def spawn_ticket(ticket_id: str, request: Request) -> dict[str, Any]:
     if agent is None:
         raise HTTPException(400, "no agent mapping matches this ticket")
 
-    _ = _default_dispatch(
+    _ = dispatch_run(
         engine=engine_singleton,
         github=github,
         ticket_id=ticket_id,
@@ -115,7 +136,12 @@ async def spawn_ticket(ticket_id: str, request: Request) -> dict[str, Any]:
 @router.post("/tickets/{ticket_id}/resume")
 async def resume_ticket(ticket_id: str, request: Request) -> dict[str, Any]:
     """Move a `Needs Human Review` ticket back to Todo. See ADR 0003."""
-    github = getattr(request.app.state, "github_client", None)
+    with engine_singleton.begin() as conn:
+        project_row = conn.execute(
+            text("SELECT project_id FROM tickets WHERE id = :id"), {"id": ticket_id},
+        ).first()
+    project_id = project_row[0] if project_row else None
+    github = _client_for_ticket(request, project_id)
     if github is None:
         raise HTTPException(503, "github poller dormant; cannot update remote status")
 

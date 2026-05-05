@@ -71,6 +71,12 @@ def _truncate_data_tables() -> None:
         conn.execute(text("DELETE FROM external_metrics"))
         conn.execute(text("DELETE FROM external_events"))
         conn.execute(text("DELETE FROM discovered_processes"))
+        # ADR 0006 tables — delete in dependency order: workstreams →
+        # agent_runs/tickets (both reference tickets / projects) → projects.
+        conn.execute(text("DELETE FROM workstreams"))
+        conn.execute(text("DELETE FROM agent_runs"))
+        conn.execute(text("DELETE FROM tickets"))
+        conn.execute(text("DELETE FROM projects"))
 
 
 @pytest.fixture

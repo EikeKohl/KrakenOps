@@ -37,5 +37,16 @@ def test_expected_tables_exist() -> None:
         "external_metrics",
         "external_events",
         "discovered_processes",
+        # ADR 0006
+        "projects",
+        "workstreams",
     ):
         assert expected in names
+
+
+def test_tickets_has_project_id_column() -> None:
+    """ADR 0006 added a nullable project_id FK to tickets."""
+    with engine.begin() as conn:
+        rows = conn.execute(text("PRAGMA table_info(tickets)")).all()
+    cols = {r[1] for r in rows}
+    assert "project_id" in cols

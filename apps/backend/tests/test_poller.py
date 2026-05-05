@@ -1,12 +1,13 @@
-"""Poller tick: ticket mirror, kanban broadcast, agent dispatch.
+"""Poller tick: ticket mirror + project upsert + kanban broadcast (ADR 0006).
 
-Tests substitute a recording dispatch function so no real subprocesses are
-spawned — that path is exercised by test_orchestrator.py.
+The auto-spawn-on-Todo path was removed in ADR 0006 — KrakenOps is read-only;
+agents claim tickets via MCP or the dashboard. The manual subprocess
+dispatch is exercised by ``test_orchestrator.py`` and the
+``/v1/tickets/{id}/spawn`` route in ``test_orchestration_routes.py``.
 """
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 
 import pytest
@@ -34,107 +35,100 @@ def _clean_orchestration_tables(truncate_db) -> None:
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM agent_runs"))
         conn.execute(text("DELETE FROM tickets"))
-
-
-def _recorder():
-    """Return (calls, dispatch) — calls is a list of dispatch kwargs captured."""
-    calls: list[dict] = []
-
-    def dispatch(**kwargs) -> asyncio.Task:
-        calls.append(kwargs)
-
-        async def _noop():
-            return None
-
-        return asyncio.create_task(_noop())
-
-    return calls, dispatch
+        conn.execute(text("DELETE FROM projects"))
 
 
 async def test_first_tick_mirrors_tickets_and_broadcasts() -> None:
-    gh = FakeGitHubClient(items=[_ticket("A", "Todo")])
+    gh = FakeGitHubClient(
+        items=[_ticket("A", "Todo")],
+        project_id="PVT_alpha",
+        title="Alpha",
+        owner_login="acme",
+    )
     received: list[tuple[str, dict]] = []
-    _, dispatch = _recorder()
 
     summary = await tick(
-        engine, gh, agents=[], backend_endpoint="http://x/v1/traces",
+        engine, gh, agents=[],
         publish=lambda topic, data: (received.append((topic, data)), 1)[1],
-        dispatch=dispatch,
     )
 
     assert summary["ok"] is True
-    assert summary["items"] == 1
-    assert summary["spawned"] == []  # no agents configured
+    assert summary["upserts"] == 1
+    assert summary["project_id"] == "PVT_alpha"
 
     [(topic, data)] = received
     assert topic == "kanban"
     assert len(data["tickets"]) == 1
     assert data["tickets"][0]["id"] == "A"
+    assert data["tickets"][0]["project_id"] == "PVT_alpha"
+    assert len(data["projects"]) == 1
+    assert data["projects"][0]["id"] == "PVT_alpha"
+    assert data["projects"][0]["title"] == "Alpha"
+    assert data["projects"][0]["owner_login"] == "acme"
 
     with engine.begin() as conn:
-        rows = conn.execute(text("SELECT id, status FROM tickets")).all()
-    assert dict(rows) == {"A": "Todo"}
+        rows = conn.execute(text("SELECT id, status, project_id FROM tickets")).all()
+    assert {r[0]: (r[1], r[2]) for r in rows} == {"A": ("Todo", "PVT_alpha")}
 
 
-async def test_label_match_assigns_agent_and_dispatches(tmp_path: Path) -> None:
+async def test_label_assigns_agent_but_does_not_dispatch(tmp_path: Path) -> None:
+    """ADR 0006: ticket.agent is still populated for manual spawn but no
+    subprocess fires automatically."""
     gh = FakeGitHubClient(items=[
         _ticket("A", "Todo", label="research"),
         _ticket("B", "Todo", label="other"),
     ])
     agents = [_agent("research", tmp_path / "noop.py", label="research")]
-    calls, dispatch = _recorder()
 
-    summary = await tick(
-        engine, gh, agents=agents, backend_endpoint="http://x/v1/traces",
-        publish=lambda *a: 0, dispatch=dispatch,
-    )
+    summary = await tick(engine, gh, agents=agents, publish=lambda *a: 0)
 
-    assert summary["spawned"] == ["A"]
-    assert len(calls) == 1
-    assert calls[0]["ticket_id"] == "A"
-    assert calls[0]["agent"].name == "research"
+    assert summary["upserts"] == 2
+    assert "spawned" not in summary  # field intentionally removed in ADR 0006
 
     with engine.begin() as conn:
         rows = dict(conn.execute(text("SELECT id, agent FROM tickets")).all())
     assert rows == {"A": "research", "B": None}
 
+    # No agent_runs row — auto-dispatch is gone.
+    with engine.begin() as conn:
+        run_count = conn.execute(text("SELECT COUNT(*) FROM agent_runs")).scalar()
+    assert run_count == 0
 
-async def test_no_dispatch_when_status_unchanged(tmp_path: Path) -> None:
+
+async def test_repeat_tick_keeps_status_unchanged(tmp_path: Path) -> None:
     gh = FakeGitHubClient(items=[_ticket("A", "Todo", label="research")])
     agents = [_agent("research", tmp_path / "noop.py", label="research")]
-    calls, dispatch = _recorder()
 
-    first = await tick(
-        engine, gh, agents=agents, backend_endpoint="x", publish=lambda *a: 0, dispatch=dispatch,
-    )
-    second = await tick(
-        engine, gh, agents=agents, backend_endpoint="x", publish=lambda *a: 0, dispatch=dispatch,
-    )
+    await tick(engine, gh, agents=agents, publish=lambda *a: 0)
+    await tick(engine, gh, agents=agents, publish=lambda *a: 0)
 
-    assert first["spawned"] == ["A"]
-    assert second["spawned"] == []  # already-Todo doesn't re-spawn
-    assert len(calls) == 1
+    with engine.begin() as conn:
+        run_count = conn.execute(text("SELECT COUNT(*) FROM agent_runs")).scalar()
+    assert run_count == 0
 
 
-async def test_transition_into_todo_triggers_dispatch(tmp_path: Path) -> None:
+async def test_status_transition_updates_updated_at(tmp_path: Path) -> None:
     item = _ticket("A", "In Progress", label="research")
     gh = FakeGitHubClient(items=[item])
-    agents = [_agent("research", tmp_path / "noop.py", label="research")]
-    calls, dispatch = _recorder()
 
-    first = await tick(
-        engine, gh, agents=agents, backend_endpoint="x", publish=lambda *a: 0, dispatch=dispatch,
-    )
-    assert first["spawned"] == []  # not Todo
-    assert calls == []
+    await tick(engine, gh, agents=[], publish=lambda *a: 0)
+    with engine.begin() as conn:
+        first_updated = conn.execute(
+            text("SELECT updated_at_s FROM tickets WHERE id = 'A'")
+        ).scalar()
 
-    # Move into Todo.
+    # Move into Todo and tick again.
     gh._items["A"] = TicketItem(id="A", title="t", status="Todo", url=None, labels=["research"])
-    second = await tick(
-        engine, gh, agents=agents, backend_endpoint="x", publish=lambda *a: 0, dispatch=dispatch,
-    )
-    assert second["spawned"] == ["A"]
-    assert len(calls) == 1
+    await tick(engine, gh, agents=[], publish=lambda *a: 0)
+
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT status, updated_at_s FROM tickets WHERE id = 'A'")
+        ).first()
+    assert row[0] == "Todo"
+    # updated_at_s must have advanced (or stayed equal if both ticks fell in the
+    # same second — the upsert clause only bumps it when the status changed).
+    assert row[1] >= first_updated
 
 
 async def test_github_failure_does_not_crash() -> None:
@@ -142,8 +136,5 @@ async def test_github_failure_does_not_crash() -> None:
         async def list_items(self):
             raise RuntimeError("network down")
 
-    summary = await tick(
-        engine, Boom(), agents=[], backend_endpoint="x",
-        publish=lambda *a: 0, dispatch=lambda **kw: None,
-    )
-    assert summary == {"ok": False, "items": 0, "spawned": []}
+    summary = await tick(engine, Boom(project_id="PVT_x"), agents=[], publish=lambda *a: 0)
+    assert summary == {"ok": False, "project_id": "PVT_x", "upserts": 0}

@@ -1,17 +1,19 @@
 import { CostsStrip } from "@/components/CostsStrip";
 import { HardwarePanel } from "@/components/HardwarePanel";
+import { HostActivityStrip } from "@/components/HostActivityStrip";
 import { KanbanPanel } from "@/components/KanbanPanel";
 import { LiveIndicator } from "@/components/LiveIndicator";
-import { ProcessesPanel } from "@/components/ProcessesPanel";
+import { WorkstreamsPanel } from "@/components/WorkstreamsPanel";
 
 /**
  * Dashboard shell — header strip with brand + live state + cost rollup,
- * three-panel grid below. The left column hosts Hardware Health on top and
- * leaves room to grow without inheriting the Processes panel's height.
+ * three-panel grid below (Hardware · Workstreams · Kanban), and a small
+ * "host activity" strip below the main grid for SDK spans + discovered
+ * processes (ADR 0006).
  */
 export default function DashboardPage() {
   return (
-    <div className="grid h-screen grid-rows-[auto_1fr] gap-4 p-4 lg:p-5">
+    <div className="grid min-h-screen grid-rows-[auto_1fr_auto] gap-4 p-4 lg:p-5">
       <header className="flex flex-wrap items-center justify-between gap-4 px-1">
         <div className="flex items-center gap-3">
           <BrandMark />
@@ -31,9 +33,10 @@ export default function DashboardPage() {
         <div className="flex flex-col gap-4 self-start lg:col-span-3">
           <HardwarePanel />
         </div>
-        <ProcessesPanel className="lg:col-span-6" />
-        <KanbanPanel className="lg:col-span-3" />
+        <WorkstreamsPanel className="lg:col-span-5" />
+        <KanbanPanel className="lg:col-span-4" />
       </main>
+      <HostActivityStrip />
     </div>
   );
 }
