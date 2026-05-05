@@ -106,3 +106,43 @@ def test_pick_agent_returns_none_when_no_match() -> None:
 
     agents = [AgentConfig(name="r", script_path=Path("/x.py"), match_label="research")]
     assert pick_agent_for("not-research", agents) is None
+
+
+def test_processes_default_allowlist_is_claude(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("KRAKENOPS_PROCESS_ALLOWLIST", raising=False)
+    cfg = load(tmp_path / "no_such.toml")
+    assert cfg.processes.allowlist == ("claude",)
+    assert cfg.processes.enabled is True
+
+
+def test_processes_env_var_overrides_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("KRAKENOPS_PROCESS_ALLOWLIST", "claude,Cursor, continue")
+    cfg = load(tmp_path / "no_such.toml")
+    # Lowercased, trimmed, deduped, order-preserved.
+    assert cfg.processes.allowlist == ("claude", "cursor", "continue")
+
+
+def test_processes_empty_env_disables_sampler(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("KRAKENOPS_PROCESS_ALLOWLIST", "")
+    cfg = load(tmp_path / "no_such.toml")
+    assert cfg.processes.allowlist == ()
+    assert cfg.processes.enabled is False
+
+
+def test_processes_file_overrides_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("KRAKENOPS_PROCESS_ALLOWLIST", "from_env")
+    p = tmp_path / "config.toml"
+    p.write_text("""
+[processes]
+allowlist = ["claude", "cursor"]
+""")
+    cfg = load(p)
+    assert cfg.processes.allowlist == ("claude", "cursor")

@@ -21,6 +21,11 @@ import pytest
 _TMP = Path(tempfile.mkdtemp(prefix="krakenops-test-"))
 os.environ["KRAKENOPS_HOME"] = str(_TMP)
 os.environ["KRAKENOPS_DB_PATH"] = str(_TMP / "test.db")
+# Disable the per-process sampler in tests — otherwise it will scan the host
+# and insert real `claude` processes mid-test, racing with the unit tests for
+# the `discovered_processes` table. ADR 0005 §"Allowlist config" — empty list
+# disables.
+os.environ["KRAKENOPS_PROCESS_ALLOWLIST"] = ""
 
 # Now safe to import the app and its deps.
 from fastapi.testclient import TestClient  # noqa: E402
@@ -62,6 +67,10 @@ def _truncate_data_tables() -> None:
         conn.execute(text("DELETE FROM token_usage"))
         conn.execute(text("DELETE FROM spans"))
         conn.execute(text("DELETE FROM traces"))
+        # ADR 0005 tables (no FKs but we want a clean slate per test).
+        conn.execute(text("DELETE FROM external_metrics"))
+        conn.execute(text("DELETE FROM external_events"))
+        conn.execute(text("DELETE FROM discovered_processes"))
 
 
 @pytest.fixture

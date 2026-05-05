@@ -1,0 +1,81 @@
+{
+  "_comment": "Decoded shape of an ExportMetricsServiceRequest emitted by Claude Code with CLAUDE_CODE_ENABLE_TELEMETRY=1. The backend's protobuf decoder produces this structure; ingest tests replay it. See docs/adr/0005-external-otel-and-process-discovery.md.",
+  "resource": {
+    "attributes": {
+      "service.name": "claude-code",
+      "service.version": "1.4.0",
+      "os.type": "darwin",
+      "os.version": "25.3.0",
+      "host.arch": "arm64"
+    }
+  },
+  "metrics": [
+    {
+      "name": "claude_code.session.count",
+      "unit": "{session}",
+      "instrument": "counter",
+      "data_points": [
+        {
+          "value": 1,
+          "time_unix_nano": 1746374400000000000,
+          "attributes": {
+            "session.id": "01HV2T8WJ9KX1S5N4ZGXN8MZP3",
+            "start_type": "fresh",
+            "user.id": "u-12345",
+            "user.email": "ekohlmeyer21@gmail.com",
+            "terminal.type": "vscode"
+          }
+        }
+      ]
+    },
+    {
+      "name": "claude_code.token.usage",
+      "unit": "{token}",
+      "instrument": "counter",
+      "data_points": [
+        {
+          "value": 1842,
+          "time_unix_nano": 1746374412300000000,
+          "attributes": {
+            "session.id": "01HV2T8WJ9KX1S5N4ZGXN8MZP3",
+            "type": "input",
+            "model": "claude-opus-4-7",
+            "query_source": "user",
+            "speed": "default",
+            "effort": "high"
+          }
+        },
+        {
+          "value": 287,
+          "time_unix_nano": 1746374412300000000,
+          "attributes": {
+            "session.id": "01HV2T8WJ9KX1S5N4ZGXN8MZP3",
+            "type": "output",
+            "model": "claude-opus-4-7",
+            "query_source": "user",
+            "speed": "default",
+            "effort": "high"
+          }
+        }
+      ]
+    },
+    {
+      "name": "claude_code.cost.usage",
+      "unit": "USD",
+      "instrument": "counter",
+      "data_points": [
+        {
+          "value": 0.0489,
+          "time_unix_nano": 1746374412300000000,
+          "attributes": {
+            "session.id": "01HV2T8WJ9KX1S5N4ZGXN8MZP3",
+            "model": "claude-opus-4-7",
+            "query_source": "user",
+            "speed": "default",
+            "effort": "high"
+          }
+        }
+      ]
+    }
+  ]
+}

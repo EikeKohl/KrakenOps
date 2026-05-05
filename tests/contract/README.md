@@ -16,7 +16,12 @@ Both the backend test suite and the SDK test suite load fixtures from this direc
 | `otel_spans.with_tokens.json`    | Adds `gen_ai.usage.input_tokens` / `gen_ai.usage.output_tokens` / `gen_ai.request.model` | PR #3 |
 | `otel_spans.human_review.json`   | A span tree where the inner tool raises `tentacle.NeedsHumanReview` | PR #3 |
 | `pricing.snapshot.yaml`          | The seeded model price list backend joins against; regenerate when prices change | PR #4 |
-| `schemas/tentacle_span.schema.json` | JSON Schema fixtures are validated against in CI | PR #3 |
+| `claude_code_metrics.minimal.json`     | Decoded `ExportMetricsServiceRequest` from Claude Code (session/token/cost counters) | ADR 0005 |
+| `claude_code_logs.prompt_lifecycle.json` | Decoded `ExportLogsServiceRequest` — one user prompt → api_request → tool_result, all sharing `prompt.id` | ADR 0005 |
+| `schemas/tentacle_span.schema.json`    | JSON Schema fixtures are validated against in CI | PR #3 |
+| `schemas/claude_code_metric.schema.json` | Schema for one normalized `external_metrics` row | ADR 0005 |
+| `schemas/claude_code_event.schema.json` | Schema for one normalized `external_events` row | ADR 0005 |
+| `schemas/discovered_process.schema.json` | Schema for one `discovered_processes` row published on the `processes` WS topic | ADR 0005 |
 
 ## Format note
 

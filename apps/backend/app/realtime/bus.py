@@ -18,7 +18,7 @@ _log = logging.getLogger("krakenops.realtime.bus")
 
 # Topics defined in CLAUDE.md §5. The bus accepts arbitrary topic names but
 # the WS endpoint validates against this set.
-TOPICS = ("metrics", "traces", "kanban")
+TOPICS = ("metrics", "traces", "kanban", "processes", "events")
 
 _QUEUE_MAX = 1024
 

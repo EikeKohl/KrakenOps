@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://krakenops.dev/schemas/claude_code_event.schema.json",
+  "title": "ClaudeCodeEvent",
+  "description": "One normalized log/event record as the backend stores it in `external_events`. Source: Claude Code (`service.name=claude-code`) OTLP logs export. See ADR 0005.",
+  "type": "object",
+  "required": ["service_name", "event_name", "observed_at_ns", "attributes"],
+  "properties": {
+    "service_name": { "type": "string", "const": "claude-code" },
+    "event_name": {
+      "type": "string",
+      "enum": [
+        "claude_code.user_prompt",
+        "claude_code.tool_result",
+        "claude_code.api_request",
+        "claude_code.api_error",
+        "claude_code.api_request_body",
+        "claude_code.api_response_body",
+        "claude_code.tool_decision",
+        "claude_code.permission_mode_changed",
+        "claude_code.auth",
+        "claude_code.mcp_server_connection",
+        "claude_code.plugin_installed",
+        "claude_code.skill_activated",
+        "claude_code.at_mention",
+        "claude_code.api_retries_exhausted",
+        "claude_code.hook_execution_start",
+        "claude_code.hook_execution_end",
+        "claude_code.compaction",
+        "claude_code.internal_error"
+      ]
+    },
+    "prompt_id": { "type": ["string", "null"] },
+    "session_id": { "type": ["string", "null"] },
+    "observed_at_ns": { "type": "integer", "minimum": 0 },
+    "attributes": {
+      "type": "object",
+      "description": "Event-specific structured fields. Common: model, tool_name, duration_ms, input_tokens, output_tokens, cost_usd, success.",
+      "properties": {
+        "model": { "type": "string" },
+        "tool_name": { "type": "string" },
+        "duration_ms": { "type": "integer", "minimum": 0 },
+        "input_tokens": { "type": "integer", "minimum": 0 },
+        "output_tokens": { "type": "integer", "minimum": 0 },
+        "cost_usd": { "type": "number", "minimum": 0 },
+        "success": { "type": "boolean" }
+      }
+    }
+  }
+}

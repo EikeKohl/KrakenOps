@@ -56,8 +56,10 @@ def test_ws_traces_topic_fanned_out_on_post(client: TestClient, fixture_loader) 
 
 
 def test_ws_default_topics_is_all_known(client: TestClient) -> None:
-    # No `?topics=` → default to all topics; sampler ensures we receive a metrics
-    # ping promptly even with no traces being posted.
+    # No `?topics=` → default to all topics; the hardware sampler ensures we
+    # receive a metrics ping promptly even with no traces being posted.
+    from app.realtime.bus import TOPICS
+
     with client.websocket_connect("/v1/ws") as ws:
         msg = ws.receive_json()
-    assert msg["topic"] in {"metrics", "traces", "kanban"}
+    assert msg["topic"] in set(TOPICS)

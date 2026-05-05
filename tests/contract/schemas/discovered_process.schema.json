@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://krakenops.dev/schemas/discovered_process.schema.json",
+  "title": "DiscoveredProcess",
+  "description": "One row of the `discovered_processes` table — a host process matched by the per-process psutil sampler's allowlist. Published per-snapshot on the `processes` WS topic. See ADR 0005.",
+  "type": "object",
+  "required": ["pid", "name", "cmdline", "cpu_pct", "rss_mb", "first_seen_ns", "last_seen_ns"],
+  "properties": {
+    "pid": { "type": "integer", "minimum": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "cmdline": { "type": "string" },
+    "cpu_pct": { "type": "number", "minimum": 0 },
+    "rss_mb": { "type": "number", "minimum": 0 },
+    "first_seen_ns": { "type": "integer", "minimum": 0 },
+    "last_seen_ns": { "type": "integer", "minimum": 0 }
+  }
+}
