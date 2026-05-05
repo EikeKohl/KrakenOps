@@ -133,6 +133,65 @@ async def spawn_ticket(ticket_id: str, request: Request) -> dict[str, Any]:
     return {"run_id": int(run_id) if run_id is not None else None, "agent": agent.name}
 
 
+@router.post("/tickets/{ticket_id}/status")
+async def set_ticket_status(ticket_id: str, request: Request) -> dict[str, Any]:
+    """Push a status change to GitHub for ``ticket_id`` (ADR 0007).
+
+    Body: ``{status: str, agent_session_id?: str}``. The
+    ``agent_session_id`` is informational — the backend only uses it for
+    the response so MCP callers can confirm "yes, this was your session
+    that flipped it". The actual GitHub mutation goes through the
+    per-project client resolved from ``tickets.project_id``.
+
+    Refuses unknown statuses (the project's option list is the source of
+    truth) by surfacing whatever ``GitHubGraphQLClient.set_status``
+    raises as a 400.
+    """
+    body = await request.json() if (await request.body()) else {}
+    if not isinstance(body, dict):
+        raise HTTPException(400, "expected a JSON object")
+    new_status = body.get("status")
+    if not isinstance(new_status, str) or not new_status:
+        raise HTTPException(400, "status required (string)")
+    agent_session_id = body.get("agent_session_id")
+
+    with engine_singleton.begin() as conn:
+        row = conn.execute(
+            text("SELECT status, project_id FROM tickets WHERE id = :id"),
+            {"id": ticket_id},
+        ).first()
+    if row is None:
+        raise HTTPException(404, "ticket not found")
+    _current_status, project_id = row
+
+    github = _client_for_ticket(request, project_id)
+    if github is None:
+        raise HTTPException(503, "github poller dormant; cannot update remote status")
+
+    try:
+        await github.set_status(ticket_id, new_status)
+    except RuntimeError as e:
+        # Unknown status / unknown field — surface the project's reality.
+        raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        _log.exception("github set_status failed for ticket=%s", ticket_id)
+        raise HTTPException(502, f"github update failed: {e}") from e
+
+    # Optimistic local update so the dashboard reflects the change before
+    # the next poll tick.
+    with engine_singleton.begin() as conn:
+        conn.execute(
+            text("UPDATE tickets SET status = :st, updated_at_s = :ts WHERE id = :id"),
+            {"st": new_status, "ts": int(time.time()), "id": ticket_id},
+        )
+
+    return {
+        "ticket_id": ticket_id,
+        "status": new_status,
+        "agent_session_id": agent_session_id,
+    }
+
+
 @router.post("/tickets/{ticket_id}/resume")
 async def resume_ticket(ticket_id: str, request: Request) -> dict[str, Any]:
     """Move a `Needs Human Review` ticket back to Todo. See ADR 0003."""

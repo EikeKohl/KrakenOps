@@ -26,6 +26,7 @@ from app.routes import (
     costs,
     events,
     health,
+    hooks,
     logs_ingest,
     metrics_ingest,
     processes,
@@ -134,4 +135,5 @@ app.include_router(processes.router)
 app.include_router(events.router)
 app.include_router(projects.router)
 app.include_router(workstreams.router)
+app.include_router(hooks.router)
 app.include_router(realtime_ws.router)

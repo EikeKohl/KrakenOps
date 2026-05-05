@@ -163,6 +163,40 @@ def find_by_external(
     return int(row[0]) if row else None
 
 
+def resolve_workstream(
+    engine: Engine,
+    *,
+    source: str = "claude_code",
+    session_id: str | None = None,
+) -> int | None:
+    """Find the workstream the caller is referring to (ADR 0007).
+
+    Resolution order:
+      1. ``(source, session_id)`` if ``session_id`` is provided.
+      2. The most-recently-seen ``source`` workstream that's still in
+         the active window — this is the heuristic fallback for MCP
+         tool calls that omit the session_id.
+
+    Returns ``None`` when no workstream matches; callers map this to a
+    404 in HTTP responses.
+    """
+    if session_id is not None:
+        return find_by_external(engine, source=source, external_id=session_id)
+
+    cutoff = int(time.time()) - ACTIVE_WINDOW_S
+    with engine.begin() as conn:
+        row = conn.execute(
+            text(
+                "SELECT id FROM workstreams"
+                " WHERE source = :source AND ended_at_s IS NULL"
+                "   AND last_seen_at_s >= :cutoff"
+                " ORDER BY last_seen_at_s DESC LIMIT 1"
+            ),
+            {"source": source, "cutoff": cutoff},
+        ).first()
+    return int(row[0]) if row else None
+
+
 def list_workstreams(engine: Engine, *, limit: int = 100) -> list[dict[str, Any]]:
     with engine.begin() as conn:
         rows = conn.execute(
