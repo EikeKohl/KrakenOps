@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://krakenops.dev/schemas/claude_code_metric.schema.json",
+  "title": "ClaudeCodeMetric",
+  "description": "One normalized metric data-point as the backend stores it in `external_metrics`. Source: Claude Code (`service.name=claude-code`) OTLP metrics export. See ADR 0005.",
+  "type": "object",
+  "required": ["service_name", "metric_name", "value", "ts_ns", "attributes"],
+  "properties": {
+    "service_name": { "type": "string", "const": "claude-code" },
+    "metric_name": {
+      "type": "string",
+      "enum": [
+        "claude_code.session.count",
+        "claude_code.token.usage",
+        "claude_code.cost.usage",
+        "claude_code.lines_of_code.count",
+        "claude_code.commit.count",
+        "claude_code.pull_request.count",
+        "claude_code.code_edit_tool.decision",
+        "claude_code.active_time.total"
+      ]
+    },
+    "value": { "type": "number" },
+    "unit": { "type": ["string", "null"] },
+    "ts_ns": { "type": "integer", "minimum": 0 },
+    "attributes": {
+      "type": "object",
+      "properties": {
+        "session.id": { "type": "string" },
+        "model": { "type": "string" },
+        "type": { "type": "string" },
+        "start_type": { "type": "string", "enum": ["fresh", "resume", "continue"] },
+        "query_source": { "type": "string" },
+        "speed": { "type": "string" },
+        "effort": { "type": "string" }
+      }
+    }
+  }
+}

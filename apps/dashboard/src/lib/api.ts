@@ -6,7 +6,10 @@
 import type {
   AgentRunsResponse,
   CostsResponse,
+  DiscoveredProcessSnapshot,
+  ExternalEventsListResponse,
   HealthResponse,
+  KillProcessResponse,
   ResumeTicketResponse,
   SpansListResponse,
   SpawnTicketResponse,
@@ -15,7 +18,11 @@ import type {
   TracesListResponse,
 } from "@/types/api";
 
-export const API_BASE: string = process.env.NEXT_PUBLIC_KRAKENOPS_API ?? "http://localhost:8787";
+// IPv4 literal on purpose: the backend binds to 127.0.0.1 only, but modern
+// browsers resolve "localhost" to ::1 first and the connection refuses.
+// Override with NEXT_PUBLIC_KRAKENOPS_API when running the backend remotely.
+export const API_BASE: string =
+  process.env.NEXT_PUBLIC_KRAKENOPS_API ?? "http://127.0.0.1:8787";
 
 async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
@@ -65,6 +72,18 @@ export const api = {
   resumeTicket: (ticketId: string) =>
     apiPost<ResumeTicketResponse>(`/v1/tickets/${encodeURIComponent(ticketId)}/resume`),
   stopAgentRun: (runId: number) => apiPost<StopAgentResponse>(`/v1/agents/${runId}/stop`),
+
+  // ADR 0005 — process discovery + external OTel ingest.
+  listProcesses: () => apiGet<DiscoveredProcessSnapshot>("/v1/processes"),
+  killProcess: (pid: number) =>
+    apiPost<KillProcessResponse>(`/v1/processes/${encodeURIComponent(pid)}/kill`),
+  listEvents: (params?: { service?: string; limit?: number; since?: number }) => {
+    const search = new URLSearchParams();
+    if (params?.service) search.set("service", params.service);
+    search.set("limit", String(params?.limit ?? 100));
+    if (params?.since != null) search.set("since", String(params.since));
+    return apiGet<ExternalEventsListResponse>(`/v1/events?${search.toString()}`);
+  },
 };
 
 export { apiGet, apiPost };

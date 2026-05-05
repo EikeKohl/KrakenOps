@@ -27,5 +27,15 @@ def test_expected_tables_exist() -> None:
             text("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
         ).all()
     names = {r[0] for r in rows}
-    for expected in ("traces", "spans", "token_usage", "model_pricing", "schema_migrations"):
+    for expected in (
+        "traces",
+        "spans",
+        "token_usage",
+        "model_pricing",
+        "schema_migrations",
+        # ADR 0005
+        "external_metrics",
+        "external_events",
+        "discovered_processes",
+    ):
         assert expected in names

@@ -2,9 +2,9 @@ import { formatCost, formatDurationNs, formatRelativeTime } from "@/lib/format";
 import type { SpanSummary, TentacleKind } from "@/types/api";
 
 const KIND_STYLES: Record<TentacleKind, string> = {
-  agent: "bg-teal-500/15 text-teal-300 border-teal-500/30",
-  tool: "bg-sky-500/15 text-sky-300 border-sky-500/30",
-  human_review: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  agent: "bg-teal-500/15 text-teal-200 border-teal-500/30",
+  tool: "bg-sky-500/15 text-sky-200 border-sky-500/30",
+  human_review: "bg-amber-500/15 text-amber-200 border-amber-500/30",
 };
 
 const KIND_LABEL: Record<TentacleKind, string> = {
@@ -15,14 +15,14 @@ const KIND_LABEL: Record<TentacleKind, string> = {
 
 export function SpanRow({ span }: { span: SpanSummary }) {
   const kind = span.tentacle_kind;
-  const kindStyle = kind ? KIND_STYLES[kind] : "bg-zinc-500/10 text-zinc-400 border-zinc-500/30";
+  const kindStyle = kind ? KIND_STYLES[kind] : "bg-zinc-500/10 text-zinc-300 border-zinc-500/30";
   const kindLabel = kind ? KIND_LABEL[kind] : "—";
   const errored = span.status_code === "ERROR";
 
   return (
-    <div className="flex items-center gap-3 border-b border-[--color-border]/50 py-2 text-sm last:border-0">
+    <div className="flex items-center gap-3 border-b border-[--color-border-subtle] py-2 text-sm last:border-0">
       <span
-        className={`min-w-[58px] rounded border px-1.5 py-0.5 text-center text-[10px] font-medium uppercase tracking-wider ${kindStyle}`}
+        className={`min-w-[58px] rounded-md border px-1.5 py-0.5 text-center text-[10px] font-medium uppercase tracking-wider ${kindStyle}`}
       >
         {kindLabel}
       </span>

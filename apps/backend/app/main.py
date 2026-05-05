@@ -21,8 +21,20 @@ from app.config_file import load as load_file_config
 from app.db.session import init_db
 from app.poller import start as start_poller
 from app.realtime import ws as realtime_ws
-from app.routes import agents, costs, health, spans, tickets, traces
+from app.routes import (
+    agents,
+    costs,
+    events,
+    health,
+    logs_ingest,
+    metrics_ingest,
+    processes,
+    spans,
+    tickets,
+    traces,
+)
 from app.sampler import loop as sampler_loop_module
+from app.sampler import processes as processes_sampler
 
 _log = logging.getLogger("krakenops.backend")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -42,6 +54,13 @@ async def lifespan(app_: FastAPI) -> AsyncIterator[None]:
     file_config = load_file_config()
     from app.db import engine
 
+    processes_task = processes_sampler.start(
+        engine,
+        file_config.processes.allowlist,
+        interval_s=1.0,
+        denylist=file_config.processes.denylist,
+    )
+
     poller_task, github_client = start_poller(engine, file_config, _self_endpoint())
 
     # Route handlers (spawn / resume) reach the GitHub client + agent
@@ -51,14 +70,15 @@ async def lifespan(app_: FastAPI) -> AsyncIterator[None]:
     app_.state.backend_endpoint = _self_endpoint()
 
     _log.info(
-        "krakenops backend ready (poller=%s, agents=%d)",
+        "krakenops backend ready (poller=%s, agents=%d, processes=%s)",
         "on" if poller_task else "dormant",
         len(file_config.agents),
+        "on" if file_config.processes.enabled else "off",
     )
     try:
         yield
     finally:
-        for task in (poller_task, sampler_task):
+        for task in (poller_task, sampler_task, processes_task):
             if task is None:
                 continue
             task.cancel()
@@ -76,8 +96,15 @@ app = FastAPI(
 # Local-first: dashboard runs on the same host but a different port (3000 by
 # default, 3001 if 3000 is taken). Allow it to call the REST API from the
 # browser. Override via KRAKENOPS_CORS_ORIGINS (comma-separated) when needed.
-_default_origins = "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001"
-_cors_origins = [o.strip() for o in os.environ.get("KRAKENOPS_CORS_ORIGINS", _default_origins).split(",") if o.strip()]
+_default_origins = (
+    "http://localhost:3000,http://localhost:3001,"
+    "http://127.0.0.1:3000,http://127.0.0.1:3001"
+)
+_cors_origins = [
+    o.strip()
+    for o in os.environ.get("KRAKENOPS_CORS_ORIGINS", _default_origins).split(",")
+    if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
@@ -91,4 +118,8 @@ app.include_router(spans.router)
 app.include_router(costs.router)
 app.include_router(tickets.router)
 app.include_router(agents.router)
+app.include_router(metrics_ingest.router)
+app.include_router(logs_ingest.router)
+app.include_router(processes.router)
+app.include_router(events.router)
 app.include_router(realtime_ws.router)
