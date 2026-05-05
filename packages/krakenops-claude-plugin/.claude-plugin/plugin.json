@@ -1,0 +1,14 @@
+{
+  "name": "krakenops-monitoring",
+  "version": "0.1.0",
+  "description": "KrakenOps integration for Claude Code: live TODO progress in the dashboard, plus MCP tools to claim tickets and push status back to GitHub Projects.",
+  "author": {
+    "name": "KrakenOps contributors"
+  },
+  "mcpServers": {
+    "krakenops": {
+      "command": "uv",
+      "args": ["run", "--script", "${CLAUDE_PLUGIN_ROOT}/server.py"]
+    }
+  }
+}

@@ -34,6 +34,7 @@ DEFAULT_ENDPOINT = f"http://localhost:{DEFAULT_BACKEND_PORT}"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TELEMETRY_SCRIPT = REPO_ROOT / "scripts" / "install-claude-code-telemetry.sh"
+PLUGIN_DIR = REPO_ROOT / "packages" / "krakenops-claude-plugin"
 
 
 # --- ANSI helpers ---------------------------------------------------------
@@ -517,6 +518,44 @@ def install_claude_code_telemetry() -> None:
         print(red(f"  ✗ telemetry install failed (exit {e.returncode})"))
 
 
+def install_claude_code_plugin() -> None:
+    section("Claude Code plugin (TODO + MCP)")
+    print(
+        "  KrakenOps ships a Claude Code plugin that surfaces TodoWrite\n"
+        "  progress in the dashboard and adds four MCP tools the agent\n"
+        "  can call (claim_ticket, set_status, set_todos, get_my_tickets)."
+    )
+    print(dim("  Without it, sessions still appear (auto-discovered from OTel) —"))
+    print(dim("  but TODOs and self-claim don't fire. Install once; works in"))
+    print(dim("  every future Claude Code session."))
+    print()
+
+    if not PLUGIN_DIR.exists():
+        print(yellow(f"  ! plugin folder missing at {PLUGIN_DIR} — skipping."))
+        return
+
+    if not confirm("Print the install command for me to run?", default=True):
+        return
+
+    print()
+    cmd = f"claude --plugin-dir {PLUGIN_DIR}"
+    print(f"    {bold(cyan(cmd))}")
+    print()
+    print(
+        dim(
+            "  Or, when you publish to a marketplace later:\n"
+            "    /plugin install krakenops-monitoring@<your-marketplace>"
+        )
+    )
+    print(
+        dim(
+            "  Requirement: 'uv' on PATH (already needed for the backend);\n"
+            "  uv resolves the MCP server's deps via PEP 723 inline metadata\n"
+            "  on first run."
+        )
+    )
+
+
 def backend_check() -> None:
     section("Backend connectivity check")
     url = f"{DEFAULT_ENDPOINT}/v1/health"
@@ -560,6 +599,7 @@ def main() -> int:
     processes = processes_block()
     write_config(github, processes)
     install_claude_code_telemetry()
+    install_claude_code_plugin()
     backend_check()
     summary(github, processes)
     return 0

@@ -19,6 +19,18 @@ const SOURCE_LABEL: Record<Workstream["source"], string> = {
   manual: "manual",
 };
 
+const BIND_BADGE: Record<NonNullable<Workstream["bind_method"]>, string> = {
+  mcp: "border-[--color-accent]/40 bg-[--color-accent]/10 text-[--color-accent]",
+  manual: "border-zinc-400/30 bg-zinc-500/10 text-zinc-300",
+  auto: "border-sky-400/30 bg-sky-500/10 text-sky-200",
+};
+
+const BIND_LABEL: Record<NonNullable<Workstream["bind_method"]>, string> = {
+  mcp: "via MCP",
+  manual: "manual",
+  auto: "auto",
+};
+
 export function WorkstreamCard({
   workstream,
   ticket,
@@ -94,8 +106,10 @@ export function WorkstreamCard({
               </span>
             )}
             {workstream.bind_method && (
-              <span className="ml-1 text-[10px] uppercase tracking-wider text-[--color-muted-foreground]">
-                · {workstream.bind_method}
+              <span
+                className={`ml-1 inline-flex items-center rounded border px-1.5 py-px font-mono text-[10px] uppercase tracking-wider ${BIND_BADGE[workstream.bind_method]}`}
+              >
+                {BIND_LABEL[workstream.bind_method]}
               </span>
             )}
           </span>

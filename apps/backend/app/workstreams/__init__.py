@@ -10,16 +10,24 @@ the MCP server we ship in the Claude Code plugin.
 
 from app.workstreams.repo import (
     bind_workstream,
+    end_workstream,
+    find_by_external,
     list_active_workstreams,
     list_workstreams,
     unbind_workstream,
+    update_todos,
+    upsert_external_workstream,
 )
 from app.workstreams.subscriber import start as start_subscriber
 
 __all__ = [
     "bind_workstream",
+    "end_workstream",
+    "find_by_external",
     "list_active_workstreams",
     "list_workstreams",
     "start_subscriber",
     "unbind_workstream",
+    "update_todos",
+    "upsert_external_workstream",
 ]

@@ -240,6 +240,97 @@ def test_unbind_endpoint(client) -> None:
     assert resp.json() == {"bound": False}
 
 
+def test_claim_endpoint_uses_heuristic_when_no_session(client) -> None:
+    """ADR 0007: agent calls /v1/workstreams/claim without session_id;
+    backend picks the most-recently-active claude_code workstream."""
+    now_s = int(time.time())
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO projects (id, title, owner_login, last_seen_at_s)"
+                " VALUES ('PVT_a', 'A', 'me', :ts)"
+            ),
+            {"ts": now_s},
+        )
+        conn.execute(
+            text(
+                "INSERT INTO tickets"
+                " (id, title, status, project_id, updated_at_s, last_seen_at_s)"
+                " VALUES ('T-claim', 't', 'Todo', 'PVT_a', :ts, :ts)"
+            ),
+            {"ts": now_s},
+        )
+    repo.upsert_external_workstream(
+        engine, source="claude_code", external_id="older",
+        label="older", now_s=now_s - 60,
+    )
+    fresh_id = repo.upsert_external_workstream(
+        engine, source="claude_code", external_id="freshest", label="fresh", now_s=now_s,
+    )
+    resp = client.post("/v1/workstreams/claim", json={"ticket_id": "T-claim"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["bind_method"] == "mcp"
+    assert body["workstream_id"] == fresh_id
+
+
+def test_claim_endpoint_explicit_session(client) -> None:
+    now_s = int(time.time())
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO projects (id, title, owner_login, last_seen_at_s)"
+                " VALUES ('PVT_a', 'A', 'me', :ts)"
+            ),
+            {"ts": now_s},
+        )
+        conn.execute(
+            text(
+                "INSERT INTO tickets (id, title, status, project_id, updated_at_s, last_seen_at_s)"
+                " VALUES ('T-explicit', 't', 'Todo', 'PVT_a', :ts, :ts)"
+            ),
+            {"ts": now_s},
+        )
+    target_id = repo.upsert_external_workstream(
+        engine, source="claude_code", external_id="explicit-sess", label="x",
+    )
+    repo.upsert_external_workstream(
+        engine, source="claude_code", external_id="other-sess", label="o",
+    )
+    resp = client.post(
+        "/v1/workstreams/claim",
+        json={"ticket_id": "T-explicit", "session_id": "explicit-sess"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["workstream_id"] == target_id
+
+
+def test_claim_endpoint_404_when_no_session_active(client) -> None:
+    resp = client.post("/v1/workstreams/claim", json={"ticket_id": "missing"})
+    assert resp.status_code == 404
+
+
+def test_todos_endpoint_replaces_list(client) -> None:
+    repo.upsert_external_workstream(
+        engine, source="claude_code", external_id="todos-sess", label="t",
+    )
+    resp = client.post(
+        "/v1/workstreams/todos",
+        json={
+            "todos": [
+                {"content": "a", "status": "completed"},
+                {"content": "b", "status": "in_progress"},
+            ],
+            "session_id": "todos-sess",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["todos_count"] == 2
+
+    rows = repo.list_active_workstreams(engine)
+    assert [t["status"] for t in rows[0]["todos"]] == ["completed", "in_progress"]
+
+
 def test_list_projects_route(client) -> None:
     with engine.begin() as conn:
         conn.execute(
