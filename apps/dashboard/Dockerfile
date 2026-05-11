@@ -12,7 +12,7 @@
 ARG PNPM_VERSION=9.12.0
 
 
-FROM node:25-alpine AS deps
+FROM node:26-alpine AS deps
 
 ARG PNPM_VERSION
 WORKDIR /app
@@ -20,7 +20,7 @@ COPY package.json pnpm-lock.yaml ./
 RUN npm install -g pnpm@${PNPM_VERSION} && pnpm install --frozen-lockfile
 
 
-FROM node:25-alpine AS builder
+FROM node:26-alpine AS builder
 
 ARG PNPM_VERSION
 WORKDIR /app
@@ -36,7 +36,7 @@ ENV NEXT_PUBLIC_KRAKENOPS_API=${NEXT_PUBLIC_KRAKENOPS_API}
 RUN npm install -g pnpm@${PNPM_VERSION} && pnpm build
 
 
-FROM node:25-alpine AS runtime
+FROM node:26-alpine AS runtime
 
 WORKDIR /app
 ENV NODE_ENV=production
